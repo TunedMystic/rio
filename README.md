@@ -1,6 +1,6 @@
 # Rio
 
-![rio](https://github.com/TunedMystic/rio/assets/6523726/1be8a90e-ab76-4e7c-90e7-e2f52a914555)
+![rio-logo](https://github.com/TunedMystic/rio/assets/6523726/a057be3b-5c96-47b8-b5b9-5053b22e535f)
 
 Rio is a zero-dependency web tookit for Go.
 
