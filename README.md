@@ -13,3 +13,5 @@ Rio is a zero-dependency web tookit for Go.
 - Responses
 - Template rendering
 - Logger?
+
+Illustration by [@sjbitcode](https://github.com/sjbitcode)! ✨
