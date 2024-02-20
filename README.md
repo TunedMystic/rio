@@ -6,10 +6,10 @@ Rio is a zero-dependency web tookit for Go.
 
 <br />
 
-⏰ In Progress
+🚧 In Development
 
 - Validator
 - Middleware
 - Responses
 - Template rendering
-- Logger?
+- Logger
