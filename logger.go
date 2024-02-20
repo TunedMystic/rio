@@ -10,12 +10,15 @@ type Logger struct {
 	logger *slog.Logger
 }
 
-func NewLogger(w io.Writer) *Logger {
-	opts := slog.HandlerOptions{Level: slog.LevelInfo}
-	handler := slog.NewTextHandler(w, &opts)
-
+func NewTextLogger(w io.Writer) *Logger {
 	return &Logger{
-		logger: slog.New(handler),
+		logger: slog.New(slog.NewTextHandler(w, nil)),
+	}
+}
+
+func NewJsonLogger(w io.Writer) *Logger {
+	return &Logger{
+		logger: slog.New(slog.NewJSONHandler(w, nil)),
 	}
 }
 

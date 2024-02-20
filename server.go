@@ -14,7 +14,7 @@ type Server struct {
 
 func NewServer() *Server {
 	return &Server{
-		logger: NewLogger(os.Stdout),
+		logger: NewTextLogger(os.Stdout),
 		mux:    http.NewServeMux(),
 	}
 }
@@ -36,13 +36,13 @@ func (s *Server) Logger() *Logger {
 }
 
 func (s *Server) Routes() http.Handler {
-	logRequest := LogRequest(s.logger)
-	recoverPanic := RecoverPanic(s.logger)
-	return recoverPanic(logRequest(s.Mux()))
+	LogReq := LogRequest(s.logger)
+	Recover := RecoverPanic(s.logger)
+	return Recover(LogReq(SecureHeaders(s.mux)))
 }
 
 func (s *Server) Serve(addr string) error {
-	s.logger.Info("Serving on port", slog.String("port", addr))
+	s.logger.Info("starting server", slog.String("port", addr))
 	return Serve(addr, s.Routes())
 }
 
