@@ -3,20 +3,23 @@ package rio
 import (
 	"log/slog"
 	"net/http"
-	"os"
+	"slices"
 	"time"
+
+	"github.com/tunedmystic/rio/logger"
 )
 
 type Server struct {
-	logger *Logger
-	mux    *http.ServeMux
+	mux        *http.ServeMux
+	middleware []func(http.Handler) http.Handler
 }
 
 func NewServer() *Server {
-	return &Server{
-		logger: NewTextLogger(os.Stdout),
-		mux:    http.NewServeMux(),
+	s := &Server{
+		mux: http.NewServeMux(),
 	}
+	s.Use(RecoverPanic, LogRequest, SecureHeaders)
+	return s
 }
 
 func (s *Server) Handle(pattern string, handler http.Handler) {
@@ -27,23 +30,24 @@ func (s *Server) HandleFunc(pattern string, handler func(http.ResponseWriter, *h
 	s.mux.HandleFunc(pattern, handler)
 }
 
-func (s *Server) Mux() *http.ServeMux {
-	return s.mux
+func (s *Server) Use(middleware ...func(http.Handler) http.Handler) {
+	s.middleware = append(s.middleware, middleware...)
 }
 
-func (s *Server) Logger() *Logger {
-	return s.logger
-}
+func (s *Server) Handler() http.Handler {
+	slices.Reverse(s.middleware)
+	var h http.Handler = s.mux
 
-func (s *Server) Routes() http.Handler {
-	LogReq := LogRequest(s.logger)
-	Recover := RecoverPanic(s.logger)
-	return Recover(LogReq(SecureHeaders(s.mux)))
+	for i := range s.middleware {
+		m := s.middleware[i]
+		h = m(h)
+	}
+	return h
 }
 
 func (s *Server) Serve(addr string) error {
-	s.logger.Info("starting server", slog.String("port", addr))
-	return Serve(addr, s.Routes())
+	logger.Info("starting server", slog.String("port", addr))
+	return Serve(addr, s.Handler())
 }
 
 func Serve(addr string, handler http.Handler) error {

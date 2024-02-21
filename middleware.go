@@ -3,38 +3,59 @@ package rio
 import (
 	"log/slog"
 	"net/http"
+	"time"
+
+	"github.com/tunedmystic/rio/logger"
+	"github.com/tunedmystic/rio/utils"
 )
 
-func LogRequest(logger *Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			logger.Info("request", slog.String("method", r.Method), slog.String("path", r.URL.Path))
-			next.ServeHTTP(w, r)
-		}
-		return http.HandlerFunc(fn)
-	}
+// logResponseWriter allows us to capture the response status code.
+// .
+type logResponseWriter struct {
+	http.ResponseWriter
+	status int
 }
 
-func RecoverPanic(logger *Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			// Create a deferred function (which will always be run in the event
-			// of a panic as Go uwinds the stack).
-			defer func() {
-				// Use the builtin recover function to check
-				// if there has been a panic or not.
-				if err := recover(); err != nil {
-					w.Header().Set("Connection", "close")
+func (w *logResponseWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
+}
 
-					logger.Error("Panic recovered")
-					status := http.StatusInternalServerError
-					http.Error(w, http.StatusText(status), status)
-				}
-			}()
-			next.ServeHTTP(w, r)
+func LogRequest(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		ww := &logResponseWriter{
+			ResponseWriter: w,
+			status:         http.StatusOK,
 		}
-		return http.HandlerFunc(fn)
+
+		// Defer the logging call.
+		defer func(start time.Time) {
+			logger.Info(
+				"request",
+				slog.Int("status", ww.status),
+				slog.String("method", r.Method),
+				slog.String("url", r.URL.RequestURI()),
+				slog.Duration("time", time.Since(start)),
+			)
+		}(time.Now())
+
+		// Call the next handler
+		next.ServeHTTP(ww, r)
 	}
+	return http.HandlerFunc(fn)
+}
+
+func RecoverPanic(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				w.Header().Set("Connection", "close")
+				utils.Http500(w, err.(error))
+			}
+		}()
+		next.ServeHTTP(w, r)
+	}
+	return http.HandlerFunc(fn)
 }
 
 func SecureHeaders(next http.Handler) http.Handler {
@@ -44,7 +65,6 @@ func SecureHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "deny")
 		w.Header().Set("X-XSS-Protection", "0")
-
 		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)
