@@ -9,6 +9,14 @@ import (
 	"github.com/tunedmystic/rio/logger"
 )
 
+// ------------------------------------------------------------------
+//
+//
+// Type: Server
+//
+//
+// ------------------------------------------------------------------
+
 type Server struct {
 	mux        *http.ServeMux
 	middleware []func(http.Handler) http.Handler
@@ -49,6 +57,14 @@ func (s *Server) Serve(addr string) error {
 	logger.Info("starting server", slog.String("port", addr))
 	return Serve(addr, s.Handler())
 }
+
+// ------------------------------------------------------------------
+//
+//
+// Serve Helper Function
+//
+//
+// ------------------------------------------------------------------
 
 func Serve(addr string, handler http.Handler) error {
 	httpServer := &http.Server{

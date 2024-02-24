@@ -1,6 +1,7 @@
 package rio
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -21,6 +22,16 @@ func (w *logResponseWriter) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
 }
 
+// ------------------------------------------------------------------
+//
+//
+// LogRequest Middleware
+//
+//
+// ------------------------------------------------------------------
+
+// Logger is a middleware which logs the http request and response status.
+// .
 func LogRequest(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ww := &logResponseWriter{
@@ -45,6 +56,17 @@ func LogRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+// ------------------------------------------------------------------
+//
+//
+// RecoverPanic Middleware
+//
+//
+// ------------------------------------------------------------------
+
+// RecoverPanic is a middleware which recovers from panics and
+// logs a HTTP 500 (Internal Server Error) if possible.
+// .
 func RecoverPanic(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -58,6 +80,17 @@ func RecoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+// ------------------------------------------------------------------
+//
+//
+// SecureHeaders Middleware
+//
+//
+// ------------------------------------------------------------------
+
+// SecureHeaders is a middleware which adds HTTP security headers
+// to every response, inline with current OWASP guidance.
+// .
 func SecureHeaders(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Referrer-Policy", "origin-when-cross-origin")
@@ -68,4 +101,33 @@ func SecureHeaders(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)
+}
+
+// ------------------------------------------------------------------
+//
+//
+// CacheControl Middleware
+//
+//
+// ------------------------------------------------------------------
+
+// CacheControl is a middleware which sets the caching policy for assets.
+// Defaults to 2 days.
+// .
+func CacheControl() func(http.Handler) http.Handler {
+	return CacheControlWithAge(172800) // 2 days
+}
+
+// CacheControlWithAge is a middleware which sets the caching policy for assets.
+// .
+func CacheControlWithAge(age int) func(http.Handler) http.Handler {
+	maxAge := fmt.Sprintf("max-age=%d", age)
+
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", maxAge)
+			next.ServeHTTP(w, r)
+		}
+		return http.HandlerFunc(fn)
+	}
 }

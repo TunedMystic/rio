@@ -1,37 +1,70 @@
-package render
+package rio
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
+	"strings"
 
 	"github.com/tunedmystic/rio/utils"
 )
+
+// ------------------------------------------------------------------
+//
+//
+// Type: View
+//
+//
+// ------------------------------------------------------------------
 
 type View struct {
 	templates *template.Template
 }
 
-func New(files fs.FS, pattern string) *View {
+func NewView(filesFS fs.FS) *View {
 	funcs := template.FuncMap{
 		"safe": func(content string) template.HTML {
 			return template.HTML(content)
 		},
 	}
 
-	tmpl := template.New("").Funcs(funcs)
-	tmpl = template.Must(tmpl.ParseFS(files, pattern))
+	tmpl := template.New("")
+
+	// Walk the filesystem.
+	err := fs.WalkDir(filesFS, ".", func(path string, d fs.DirEntry, err error) error {
+		fmt.Println(path)
+		if err != nil {
+			return err
+		}
+
+		// Process all Html files, recursively.
+		if !d.IsDir() && strings.HasSuffix(path, ".html") {
+			// Read the file.
+			fileBytes, err := fs.ReadFile(filesFS, path)
+			if err != nil {
+				return err
+			}
+
+			// Create new template.
+			t := tmpl.New(path).Funcs(funcs)
+
+			// Parse the template.
+			if _, err := t.Parse(string(fileBytes)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
 
 	return &View{
 		templates: tmpl,
 	}
-
-	// view := NewView(fs, "*.html")
-	// view.Render(w, "some-template", ["something", "here"])
-	// view.Render404("")
-	// log.Fatal()
-	// logg.Info()
 }
 
 // Render writes a template to the http.ResponseWriter.
