@@ -2,7 +2,9 @@ package rio
 
 import (
 	"encoding/json"
+	"html/template"
 	"net/http"
+	"time"
 )
 
 // ------------------------------------------------------------------
@@ -44,7 +46,6 @@ func Http404(w http.ResponseWriter) {
 }
 
 func Http500(w http.ResponseWriter, err error) {
-	LogError(err.Error())
 	status := http.StatusInternalServerError
 	http.Error(w, http.StatusText(status), status)
 }
@@ -111,4 +112,58 @@ func writeJson(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	w.Write(js)
+}
+
+// ------------------------------------------------------------------
+//
+//
+// Template Functions and Function Helpers
+//
+//
+// ------------------------------------------------------------------
+
+func SafeHTML(content string) template.HTML {
+	return template.HTML(content)
+}
+
+func TimeDisplay(d time.Time) string {
+	return d.Format("3:04 PM")
+}
+
+func DateDisplay(d time.Time) string {
+	return d.Format("January 02, 2006")
+}
+
+func DateTimeDisplay(d time.Time) string {
+	return d.Format("January 02, 2006, 3:04 PM")
+}
+
+func WrapString(val string) func() string {
+	return func() string {
+		return val
+	}
+}
+
+func WrapBool(val bool) func() bool {
+	return func() bool {
+		return val
+	}
+}
+
+func WrapInt(val int) func() int {
+	return func() int {
+		return val
+	}
+}
+
+func WrapFloat(val float64) func() float64 {
+	return func() float64 {
+		return val
+	}
+}
+
+func WrapTime(val time.Time) func() time.Time {
+	return func() time.Time {
+		return val
+	}
 }
