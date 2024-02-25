@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"slices"
 	"time"
-
-	"github.com/tunedmystic/rio/logger"
 )
 
 // ------------------------------------------------------------------
@@ -54,7 +52,7 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) Serve(addr string) error {
-	logger.Info("starting server", slog.String("port", addr))
+	LogInfo("starting server", slog.String("port", addr))
 	return Serve(addr, s.Handler())
 }
 

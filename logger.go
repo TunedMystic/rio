@@ -1,4 +1,4 @@
-package logger
+package rio
 
 import (
 	"context"
@@ -7,23 +7,39 @@ import (
 	"os"
 )
 
+// ------------------------------------------------------------------
+//
+//
+// Default Logger
+//
+//
+// ------------------------------------------------------------------
+
 var defaultLogger = NewTextLogger(os.Stdout)
 
-func Debug(msg string, attrs ...slog.Attr) {
+func LogDebug(msg string, attrs ...slog.Attr) {
 	defaultLogger.Debug(msg, attrs...)
 }
 
-func Info(msg string, attrs ...slog.Attr) {
+func LogInfo(msg string, attrs ...slog.Attr) {
 	defaultLogger.Info(msg, attrs...)
 }
 
-func Warn(msg string, attrs ...slog.Attr) {
+func LogWarn(msg string, attrs ...slog.Attr) {
 	defaultLogger.Warn(msg, attrs...)
 }
 
-func Error(msg string, attrs ...slog.Attr) {
+func LogError(msg string, attrs ...slog.Attr) {
 	defaultLogger.Error(msg, attrs...)
 }
+
+// ------------------------------------------------------------------
+//
+//
+// Type: Logger
+//
+//
+// ------------------------------------------------------------------
 
 type Logger struct {
 	logger *slog.Logger
