@@ -46,7 +46,6 @@ func Http404(w http.ResponseWriter) {
 }
 
 func Http500(w http.ResponseWriter, err error) {
-	LogError(err.Error())
 	status := http.StatusInternalServerError
 	http.Error(w, http.StatusText(status), status)
 }
