@@ -24,7 +24,7 @@ func NewServer() *Server {
 	s := &Server{
 		mux: http.NewServeMux(),
 	}
-	s.Use(RecoverPanic, LogRequest, SecureHeaders)
+	s.Use(LogRequest, RecoverPanic, SecureHeaders)
 	return s
 }
 

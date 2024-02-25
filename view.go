@@ -65,10 +65,10 @@ func NewView(templatesFS fs.FS, opts ...ViewOpt) *View {
 	}
 
 	// Set default functions for the func map.
-	v.funcMap["safe"] = SafeHTML
-	v.funcMap["time"] = TimeDisplay
-	v.funcMap["date"] = DateDisplay
-	v.funcMap["datetime"] = DateTimeDisplay
+	v.funcMap["safe"] = TmplSafeHTML
+	v.funcMap["time"] = TmplTimeDisplay
+	v.funcMap["date"] = TmplDateDisplay
+	v.funcMap["datetime"] = TmplDateTimeDisplay
 
 	// Configure with ViewOpt funcs, if any.
 	for i := range opts {

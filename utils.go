@@ -46,6 +46,7 @@ func Http404(w http.ResponseWriter) {
 }
 
 func Http500(w http.ResponseWriter, err error) {
+	LogError(err.Error())
 	status := http.StatusInternalServerError
 	http.Error(w, http.StatusText(status), status)
 }
@@ -122,19 +123,19 @@ func writeJson(w http.ResponseWriter, status int, data any) {
 //
 // ------------------------------------------------------------------
 
-func SafeHTML(content string) template.HTML {
+func TmplSafeHTML(content string) template.HTML {
 	return template.HTML(content)
 }
 
-func TimeDisplay(d time.Time) string {
+func TmplTimeDisplay(d time.Time) string {
 	return d.Format("3:04 PM")
 }
 
-func DateDisplay(d time.Time) string {
+func TmplDateDisplay(d time.Time) string {
 	return d.Format("January 02, 2006")
 }
 
-func DateTimeDisplay(d time.Time) string {
+func TmplDateTimeDisplay(d time.Time) string {
 	return d.Format("January 02, 2006, 3:04 PM")
 }
 
