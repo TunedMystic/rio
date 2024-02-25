@@ -1,10 +1,8 @@
-package utils
+package rio
 
 import (
 	"encoding/json"
 	"net/http"
-
-	"github.com/tunedmystic/rio/logger"
 )
 
 // ------------------------------------------------------------------
@@ -46,7 +44,7 @@ func Http404(w http.ResponseWriter) {
 }
 
 func Http500(w http.ResponseWriter, err error) {
-	logger.Error(err.Error())
+	LogError(err.Error())
 	status := http.StatusInternalServerError
 	http.Error(w, http.StatusText(status), status)
 }

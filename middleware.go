@@ -5,10 +5,15 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
-
-	"github.com/tunedmystic/rio/logger"
-	"github.com/tunedmystic/rio/utils"
 )
+
+// ------------------------------------------------------------------
+//
+//
+// LogRequest Middleware
+//
+//
+// ------------------------------------------------------------------
 
 // logResponseWriter allows us to capture the response status code.
 // .
@@ -22,14 +27,6 @@ func (w *logResponseWriter) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
 }
 
-// ------------------------------------------------------------------
-//
-//
-// LogRequest Middleware
-//
-//
-// ------------------------------------------------------------------
-
 // Logger is a middleware which logs the http request and response status.
 // .
 func LogRequest(next http.Handler) http.Handler {
@@ -41,7 +38,7 @@ func LogRequest(next http.Handler) http.Handler {
 
 		// Defer the logging call.
 		defer func(start time.Time) {
-			logger.Info(
+			LogInfo(
 				"request",
 				slog.Int("status", ww.status),
 				slog.String("method", r.Method),
@@ -72,7 +69,7 @@ func RecoverPanic(next http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				w.Header().Set("Connection", "close")
-				utils.Http500(w, err.(error))
+				Http500(w, err.(error))
 			}
 		}()
 		next.ServeHTTP(w, r)
@@ -114,8 +111,12 @@ func SecureHeaders(next http.Handler) http.Handler {
 // CacheControl is a middleware which sets the caching policy for assets.
 // Defaults to 2 days.
 // .
-func CacheControl() func(http.Handler) http.Handler {
-	return CacheControlWithAge(172800) // 2 days
+func CacheControl(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "max-age=172800")
+		next.ServeHTTP(w, r)
+	}
+	return http.HandlerFunc(fn)
 }
 
 // CacheControlWithAge is a middleware which sets the caching policy for assets.

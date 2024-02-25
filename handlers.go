@@ -13,23 +13,23 @@ import (
 //
 // ------------------------------------------------------------------
 
-// FileServerFS is an http handler which serves files from the given file system.
+// FileServer is an http handler which serves files from the given file system.
 //
-//	r.Handle("/static/", FileServerFS(fsys))
+//	r.Handle("/static/", FileServer(fsys))
 //
 // .
-func FileServerFS(fsys fs.FS) http.Handler {
+func FileServer(fsys fs.FS) http.Handler {
 	return http.FileServerFS(fsys)
 }
 
-// FileServer is an http handler which serves files from the file system.
+// FileServerDir is an http handler which serves files from the file system.
 // Root is the filesystem root.
 // Prefix is the prefix of the request path to strip off before searching the
 // filesystem for the given file.
 //
-//	r.Handle("/static/", FileServer("./staticfiles", "/static/"))
+//	r.Handle("/static/", FileServerDir("./staticfiles", "/static/"))
 //
 // .
-func FileServer(root, prefix string) http.Handler {
+func FileServerDir(root, prefix string) http.Handler {
 	return http.StripPrefix(prefix, http.FileServer(http.Dir(root)))
 }
