@@ -8,6 +8,40 @@ import (
 // ------------------------------------------------------------------
 //
 //
+// Basic Handlers
+//
+//
+// ------------------------------------------------------------------
+
+// BasicHttp is an http handler which serves a custom message
+// with a status of 200 OK.
+//
+//	r.Handle("/", BasicHttp("hi"))
+//
+// .
+func BasicHttp(msg string) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, msg, http.StatusOK)
+	}
+	return http.HandlerFunc(fn)
+}
+
+// BasicJson is an http handler which serves a custom json message
+// with a status of 200 OK.
+//
+//	r.Handle("/", BasicJson("hi"))
+//
+// .
+func BasicJson(msg string) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		writeJson(w, msg, http.StatusOK)
+	}
+	return http.HandlerFunc(fn)
+}
+
+// ------------------------------------------------------------------
+//
+//
 // FileServer Handlers
 //
 //

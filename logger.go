@@ -17,6 +17,10 @@ import (
 
 var defaultLogger = NewLogger(os.Stdout)
 
+func Logger(l *slog.Logger) {
+	defaultLogger = l
+}
+
 func NewLogger(w io.Writer) *slog.Logger {
 	return slog.New(slog.NewTextHandler(w, nil))
 }
@@ -33,6 +37,6 @@ func LogWarn(msg string, attrs ...slog.Attr) {
 	defaultLogger.LogAttrs(context.Background(), slog.LevelWarn, msg, attrs...)
 }
 
-func LogError(msg string, attrs ...slog.Attr) {
-	defaultLogger.LogAttrs(context.Background(), slog.LevelError, msg, attrs...)
+func LogError(err error, attrs ...slog.Attr) {
+	defaultLogger.LogAttrs(context.Background(), slog.LevelError, err.Error(), attrs...)
 }
