@@ -66,10 +66,13 @@ func LogRequest(next http.Handler) http.Handler {
 // .
 func RecoverPanic(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		// The deferred function will always run,
+		// even in the event of a panic.
 		defer func() {
 			if err := recover(); err != nil {
 				w.Header().Set("Connection", "close")
-				Http500(w, err.(error))
+				LogError(err.(error))
+				Http500(w)
 			}
 		}()
 		next.ServeHTTP(w, r)
@@ -131,4 +134,49 @@ func CacheControlWithAge(age int) func(http.Handler) http.Handler {
 		}
 		return http.HandlerFunc(fn)
 	}
+}
+
+func NotFound(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			Http404(w, http.StatusText(http.StatusNotFound))
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+	return http.HandlerFunc(fn)
+}
+
+func NotFoundJson(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			Json404(w, http.StatusText(http.StatusNotFound))
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+	return http.HandlerFunc(fn)
+}
+
+type HandlerFunc func(http.ResponseWriter, *http.Request) error
+
+func MakeHandler(next HandlerFunc) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		// Run the handler and check for errors.
+		if err := next(w, r); err != nil {
+			// If the error is an AppError, then write it to the ResponseWriter.
+			if appErr, ok := err.(*AppError); ok {
+				if writeErr := appErr.WriteTo(w); writeErr != nil {
+					LogError(err)
+					Http500(w)
+				}
+				return
+			}
+			// If the error is NOT an AppError, then log it
+			// and return a generic Http 500.
+			LogError(err)
+			Http500(w)
+		}
+	}
+	return http.HandlerFunc(fn)
 }

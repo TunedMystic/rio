@@ -15,37 +15,31 @@ import (
 //
 // ------------------------------------------------------------------
 
-func Http200(w http.ResponseWriter) {
-	status := http.StatusOK
-	http.Error(w, http.StatusText(status), status)
+func Http200(w http.ResponseWriter, msg string) {
+	http.Error(w, msg, http.StatusOK)
 }
 
-func Http301(w http.ResponseWriter) {
-	status := http.StatusMovedPermanently
-	http.Error(w, http.StatusText(status), status)
+func Http301(w http.ResponseWriter, msg string) {
+	http.Error(w, msg, http.StatusMovedPermanently)
 }
 
-func Http400(w http.ResponseWriter) {
-	status := http.StatusBadRequest
-	http.Error(w, http.StatusText(status), status)
+func Http400(w http.ResponseWriter, msg string) {
+	http.Error(w, msg, http.StatusBadRequest)
 }
 
-func Http401(w http.ResponseWriter) {
-	status := http.StatusUnauthorized
-	http.Error(w, http.StatusText(status), status)
+func Http401(w http.ResponseWriter, msg string) {
+	http.Error(w, msg, http.StatusUnauthorized)
 }
 
-func Http403(w http.ResponseWriter) {
-	status := http.StatusForbidden
-	http.Error(w, http.StatusText(status), status)
+func Http403(w http.ResponseWriter, msg string) {
+	http.Error(w, msg, http.StatusForbidden)
 }
 
-func Http404(w http.ResponseWriter) {
-	status := http.StatusNotFound
-	http.Error(w, http.StatusText(status), status)
+func Http404(w http.ResponseWriter, msg string) {
+	http.Error(w, msg, http.StatusNotFound)
 }
 
-func Http500(w http.ResponseWriter, err error) {
+func Http500(w http.ResponseWriter) {
 	status := http.StatusInternalServerError
 	http.Error(w, http.StatusText(status), status)
 }
@@ -58,60 +52,69 @@ func Http500(w http.ResponseWriter, err error) {
 //
 // ------------------------------------------------------------------
 
-func Json200(w http.ResponseWriter, data any) {
-	writeJson(w, http.StatusOK, data)
+func Json200(w http.ResponseWriter, data any) error {
+	return writeJson(w, data, http.StatusOK)
 }
 
-func Json201(w http.ResponseWriter, data any) {
-	writeJson(w, http.StatusCreated, data)
+func Json201(w http.ResponseWriter, data any) error {
+	return writeJson(w, data, http.StatusCreated)
 }
 
-func Json204(w http.ResponseWriter, data any) {
-	writeJson(w, http.StatusNoContent, data)
+func Json204(w http.ResponseWriter, data any) error {
+	return writeJson(w, data, http.StatusNoContent)
 }
 
-func Json301(w http.ResponseWriter, data any) {
-	writeJson(w, http.StatusMovedPermanently, data)
+func Json301(w http.ResponseWriter, data any) error {
+	return writeJson(w, data, http.StatusMovedPermanently)
 }
 
-func Json400(w http.ResponseWriter, data any) {
-	writeJson(w, http.StatusBadRequest, data)
+func Json400(w http.ResponseWriter, data any) error {
+	return writeJson(w, data, http.StatusBadRequest)
 }
 
-func Json401(w http.ResponseWriter, data any) {
-	writeJson(w, http.StatusUnauthorized, data)
+func Json401(w http.ResponseWriter, data any) error {
+	return writeJson(w, data, http.StatusUnauthorized)
 }
 
-func Json403(w http.ResponseWriter, data any) {
-	writeJson(w, http.StatusForbidden, data)
+func Json403(w http.ResponseWriter, data any) error {
+	return writeJson(w, data, http.StatusForbidden)
 }
 
-func Json404(w http.ResponseWriter, data any) {
-	writeJson(w, http.StatusNotFound, data)
+func Json404(w http.ResponseWriter, data any) error {
+	return writeJson(w, data, http.StatusNotFound)
 }
 
-func Json500(w http.ResponseWriter, data any) {
-	writeJson(w, http.StatusInternalServerError, data)
+func Json500(w http.ResponseWriter) error {
+	return writeJson(w, nil, http.StatusInternalServerError)
 }
 
-func writeJson(w http.ResponseWriter, status int, data any) {
+type defaultJsonMessage struct {
+	Message string `json:"message"`
+}
+
+func writeJson(w http.ResponseWriter, data any, status int) error {
 	if data == nil {
-		data = struct {
-			Message string `json:"message"`
-		}{
+		data = defaultJsonMessage{
 			Message: http.StatusText(status),
+		}
+	}
+
+	if dataStr, ok := data.(string); ok {
+		data = defaultJsonMessage{
+			Message: dataStr,
 		}
 	}
 
 	js, err := json.Marshal(data)
 	if err != nil {
-		Http500(w, err)
-		return
+		return err
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	w.Write(js)
+
+	return nil
 }
 
 // ------------------------------------------------------------------
@@ -122,19 +125,19 @@ func writeJson(w http.ResponseWriter, status int, data any) {
 //
 // ------------------------------------------------------------------
 
-func SafeHTML(content string) template.HTML {
+func DisplaySafeHTML(content string) template.HTML {
 	return template.HTML(content)
 }
 
-func TimeDisplay(d time.Time) string {
+func DisplayTime(d time.Time) string {
 	return d.Format("3:04 PM")
 }
 
-func DateDisplay(d time.Time) string {
+func DisplayDate(d time.Time) string {
 	return d.Format("January 02, 2006")
 }
 
-func DateTimeDisplay(d time.Time) string {
+func DisplayDateTime(d time.Time) string {
 	return d.Format("January 02, 2006, 3:04 PM")
 }
 

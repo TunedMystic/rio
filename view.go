@@ -23,14 +23,14 @@ func Templates(templatesFS fs.FS, opts ...ViewOpt) {
 	defaultView = NewView(templatesFS, opts...)
 }
 
-func Render(w http.ResponseWriter, page string, status int, data any) {
-	defaultView.Render(w, page, status, data)
+func Render(w http.ResponseWriter, page string, status int, data any) error {
+	return defaultView.Render(w, page, status, data)
 }
 
 // ------------------------------------------------------------------
 //
 //
-// View Functional Options
+// Functional Options for View
 //
 //
 // ------------------------------------------------------------------
@@ -64,11 +64,11 @@ func NewView(templatesFS fs.FS, opts ...ViewOpt) *View {
 		funcMap:   template.FuncMap{},
 	}
 
-	// Set default functions for the func map.
-	v.funcMap["safe"] = SafeHTML
-	v.funcMap["time"] = TimeDisplay
-	v.funcMap["date"] = DateDisplay
-	v.funcMap["datetime"] = DateTimeDisplay
+	// Set default functions for the func map (from utils.go).
+	v.funcMap["safe"] = DisplaySafeHTML
+	v.funcMap["time"] = DisplayTime
+	v.funcMap["date"] = DisplayDate
+	v.funcMap["datetime"] = DisplayDateTime
 
 	// Configure with ViewOpt funcs, if any.
 	for i := range opts {
@@ -110,26 +110,19 @@ func NewView(templatesFS fs.FS, opts ...ViewOpt) *View {
 
 // Render writes a template to the http.ResponseWriter.
 // .
-func (v *View) Render(w http.ResponseWriter, page string, status int, data any) {
+func (v *View) Render(w http.ResponseWriter, page string, status int, data any) error {
 	buf := new(bytes.Buffer)
 
 	// Write the template to the buffer first.
 	// If error, then respond with a server error and return.
 	if err := v.templates.ExecuteTemplate(buf, page, data); err != nil {
-		Http500(w, err)
-		return
+		return err
 	}
 
 	w.WriteHeader(status)
 
 	// Write the contents of the buffer to the http.ResponseWriter.
 	buf.WriteTo(w)
-}
 
-func (v *View) Render404(w http.ResponseWriter, data any) {
-	v.Render(w, "404", http.StatusNotFound, data)
-}
-
-func (v *View) Render500(w http.ResponseWriter, data any) {
-	v.Render(w, "500", http.StatusInternalServerError, data)
+	return nil
 }
