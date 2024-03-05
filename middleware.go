@@ -136,6 +136,17 @@ func CacheControlWithAge(age int) func(http.Handler) http.Handler {
 	}
 }
 
+// ------------------------------------------------------------------
+//
+//
+// NotFound Middleware
+//
+//
+// ------------------------------------------------------------------
+
+// NotFound is a middleware which returns a 404 Not Found error
+// if the request path is not "/".
+// .
 func NotFound(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -147,6 +158,9 @@ func NotFound(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+// NotFound is a middleware which returns a 404 Not Found json error
+// if the request path is not "/".
+// .
 func NotFoundJson(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -158,8 +172,23 @@ func NotFoundJson(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+// ------------------------------------------------------------------
+//
+//
+// MakeHandler Middleware
+//
+//
+// ------------------------------------------------------------------
+
+// HandlerFunc is a custom http handler signature which accepts
+// an http.ResponseWriter, *http.Request and returns an error.
+// HandlerFuncs must be converted into an http.Handler with the MakeHandler middleware.
+// .
 type HandlerFunc func(http.ResponseWriter, *http.Request) error
 
+// MakeHandler is a middleware which converts a rio.HandlerFunc to an http.Handler.
+// It centralizes the error handling with the custom AppError error type.
+// .
 func MakeHandler(next HandlerFunc) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		// Run the handler and check for errors.
@@ -167,7 +196,7 @@ func MakeHandler(next HandlerFunc) http.Handler {
 			// If the error is an AppError, then write it to the ResponseWriter.
 			if appErr, ok := err.(*AppError); ok {
 				if writeErr := appErr.WriteTo(w); writeErr != nil {
-					LogError(err)
+					LogError(writeErr)
 					Http500(w)
 				}
 				return
