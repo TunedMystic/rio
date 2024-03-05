@@ -53,36 +53,69 @@ func WithFuncMap(funcMap template.FuncMap) ViewOpt {
 //
 // ------------------------------------------------------------------
 
+// View is a collection of html templates for rendering.
+// .
 type View struct {
 	templates *template.Template
 	funcMap   template.FuncMap
 }
 
+// NewView constructs and returns a new *View.
+// The templateFS is a filesystem which contains all the html templates.
+// The opts is a slice of ViewOpt funcs for optional configuration.
+// .
 func NewView(templatesFS fs.FS, opts ...ViewOpt) *View {
+	view, err := constructView(templatesFS, opts...)
+	if err != nil {
+		panic(fmt.Errorf("failed to construct View: %w", err))
+	}
+	return view
+}
+
+// Render writes a template to the http.ResponseWriter.
+// .
+func (v *View) Render(w http.ResponseWriter, page string, status int, data any) error {
+	buf := new(bytes.Buffer)
+
+	// Write the template to the buffer first.
+	if err := v.templates.ExecuteTemplate(buf, page, data); err != nil {
+		return err
+	}
+
+	w.WriteHeader(status)
+
+	// Write the contents of the buffer to the http.ResponseWriter.
+	buf.WriteTo(w)
+
+	return nil
+}
+
+func constructView(templatesFS fs.FS, opts ...ViewOpt) (*View, error) {
 	v := &View{
 		templates: template.New(""),
 		funcMap:   template.FuncMap{},
 	}
 
-	// Set default functions for the func map (from utils.go).
+	// Set the default template functions.
 	v.funcMap["safe"] = DisplaySafeHTML
 	v.funcMap["time"] = DisplayTime
 	v.funcMap["date"] = DisplayDate
 	v.funcMap["datetime"] = DisplayDateTime
 
-	// Configure with ViewOpt funcs, if any.
+	// Configure the View with with ViewOpt funcs, if any.
 	for i := range opts {
 		opts[i](v)
 	}
 
-	// Walk the filesystem.
+	// Parse and load all templates from the given filesystem.
+	//
+	// Walk the templateFS filesystem, recursively.
 	err := fs.WalkDir(templatesFS, ".", func(path string, d fs.DirEntry, err error) error {
-		fmt.Println(path)
 		if err != nil {
 			return err
 		}
 
-		// Process all Html files, recursively.
+		// Process all Html files.
 		if !d.IsDir() && strings.HasSuffix(path, ".html") {
 			// Read the file.
 			fileBytes, err := fs.ReadFile(templatesFS, path)
@@ -101,28 +134,5 @@ func NewView(templatesFS fs.FS, opts ...ViewOpt) *View {
 		return nil
 	})
 
-	if err != nil {
-		panic(err)
-	}
-
-	return v
-}
-
-// Render writes a template to the http.ResponseWriter.
-// .
-func (v *View) Render(w http.ResponseWriter, page string, status int, data any) error {
-	buf := new(bytes.Buffer)
-
-	// Write the template to the buffer first.
-	// If error, then respond with a server error and return.
-	if err := v.templates.ExecuteTemplate(buf, page, data); err != nil {
-		return err
-	}
-
-	w.WriteHeader(status)
-
-	// Write the contents of the buffer to the http.ResponseWriter.
-	buf.WriteTo(w)
-
-	return nil
+	return v, err
 }

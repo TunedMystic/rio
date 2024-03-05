@@ -16,7 +16,7 @@ import (
 // BasicHttp is an http handler which serves a custom message
 // with a status of 200 OK.
 //
-//	r.Handle("/", BasicHttp("hi"))
+//	mux.Handle("/", BasicHttp("hi"))
 //
 // .
 func BasicHttp(msg string) http.Handler {
@@ -29,7 +29,7 @@ func BasicHttp(msg string) http.Handler {
 // BasicJson is an http handler which serves a custom json message
 // with a status of 200 OK.
 //
-//	r.Handle("/", BasicJson("hi"))
+//	mux.Handle("/", BasicJson("hi"))
 //
 // .
 func BasicJson(msg string) http.Handler {
@@ -49,7 +49,7 @@ func BasicJson(msg string) http.Handler {
 
 // FileServer is an http handler which serves files from the given file system.
 //
-//	r.Handle("/static/", FileServer(fsys))
+//	mux.Handle("/static/", FileServer(fsys))
 //
 // .
 func FileServer(fsys fs.FS) http.Handler {
@@ -61,7 +61,7 @@ func FileServer(fsys fs.FS) http.Handler {
 // Prefix is the prefix of the request path to strip off before searching the
 // filesystem for the given file.
 //
-//	r.Handle("/static/", FileServerDir("./staticfiles", "/static/"))
+//	mux.Handle("/static/", FileServerDir("./staticfiles", "/static/"))
 //
 // .
 func FileServerDir(root, prefix string) http.Handler {
