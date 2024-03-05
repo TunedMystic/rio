@@ -19,10 +19,14 @@ import (
 
 var defaultView = &View{templates: template.New("")}
 
+// Templates configures the default view with the given
+// templateFS filesystem and the
+// opts functional options.
 func Templates(templatesFS fs.FS, opts ...ViewOpt) {
 	defaultView = NewView(templatesFS, opts...)
 }
 
+// Render writes a template to the http.ResponseWriter.
 func Render(w http.ResponseWriter, page string, status int, data any) error {
 	return defaultView.Render(w, page, status, data)
 }
@@ -35,12 +39,19 @@ func Render(w http.ResponseWriter, page string, status int, data any) error {
 //
 // ------------------------------------------------------------------
 
+// ViewOpt is a function to configure a View.
 type ViewOpt func(*View)
 
+// WithFuncMap adds the functions in the given funcMap to the View.
+//
+// If the View contains a funcMap function with the same name,
+// then it will not be added.
 func WithFuncMap(funcMap template.FuncMap) ViewOpt {
 	return func(v *View) {
 		for key := range funcMap {
-			v.funcMap[key] = funcMap[key]
+			if _, ok := v.funcMap[key]; !ok {
+				v.funcMap[key] = funcMap[key]
+			}
 		}
 	}
 }
@@ -54,26 +65,24 @@ func WithFuncMap(funcMap template.FuncMap) ViewOpt {
 // ------------------------------------------------------------------
 
 // View is a collection of html templates for rendering.
-// .
 type View struct {
 	templates *template.Template
 	funcMap   template.FuncMap
 }
 
 // NewView constructs and returns a new *View.
-// The templateFS is a filesystem which contains all the html templates.
+//
+// The templateFS is a filesystem which contains html templates.
 // The opts is a slice of ViewOpt funcs for optional configuration.
-// .
 func NewView(templatesFS fs.FS, opts ...ViewOpt) *View {
 	view, err := constructView(templatesFS, opts...)
 	if err != nil {
-		panic(fmt.Errorf("failed to construct View: %w", err))
+		panic(fmt.Errorf("failed to construct view: %w", err))
 	}
 	return view
 }
 
 // Render writes a template to the http.ResponseWriter.
-// .
 func (v *View) Render(w http.ResponseWriter, page string, status int, data any) error {
 	buf := new(bytes.Buffer)
 
@@ -90,6 +99,12 @@ func (v *View) Render(w http.ResponseWriter, page string, status int, data any) 
 	return nil
 }
 
+// constructView constructs and returns a *View.
+//
+// All html templates within templatesFS are parsed and loaded.
+//
+// Default template functions are provided to the funcmap, but
+// more can be added with the ViewOpt functions.
 func constructView(templatesFS fs.FS, opts ...ViewOpt) (*View, error) {
 	v := &View{
 		templates: template.New(""),

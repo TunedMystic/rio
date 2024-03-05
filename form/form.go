@@ -104,6 +104,7 @@ type DecimalFunc func(Decimal) error
 // ------------------------------------------------------------------
 
 // Validator is a type which parses and validates form data.
+//
 // It is initialized with a data map, containing values to process.
 // Values can be parsed into a desired type, like an int, date, bool, etc.
 // Validation functions can also be provided, which ensures that
@@ -114,6 +115,7 @@ type Validator struct {
 }
 
 // NewValidator constructs a new Validator with the given data map.
+//
 // The provided data is normalized, which means
 // keys and values are trimmed, and
 // key/value pairs are omitted if the value is an empty string.

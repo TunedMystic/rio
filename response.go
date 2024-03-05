@@ -86,10 +86,16 @@ func Json500(w http.ResponseWriter) error {
 	return writeJson(w, nil, http.StatusInternalServerError)
 }
 
+// defaultJsonMessage represents a simple json message.
 type defaultJsonMessage struct {
 	Message string `json:"message"`
 }
 
+// writeJson is a helper function which writes data to the ResponseWriter.
+//
+//   - If data is nil, then the status text is wrapped in a default message struct.
+//   - If data is a string, then it is also wrapped in a default message struct.
+//   - If data is a struct, then it is simply written to the ResponseWriter.
 func writeJson(w http.ResponseWriter, data any, status int) error {
 	if data == nil {
 		data = defaultJsonMessage{

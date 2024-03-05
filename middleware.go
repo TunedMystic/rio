@@ -16,7 +16,6 @@ import (
 // ------------------------------------------------------------------
 
 // logResponseWriter allows us to capture the response status code.
-// .
 type logResponseWriter struct {
 	http.ResponseWriter
 	status int
@@ -28,7 +27,6 @@ func (w *logResponseWriter) WriteHeader(status int) {
 }
 
 // Logger is a middleware which logs the http request and response status.
-// .
 func LogRequest(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ww := &logResponseWriter{
@@ -63,7 +61,6 @@ func LogRequest(next http.Handler) http.Handler {
 
 // RecoverPanic is a middleware which recovers from panics and
 // logs a HTTP 500 (Internal Server Error) if possible.
-// .
 func RecoverPanic(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		// The deferred function will always run,
@@ -90,7 +87,6 @@ func RecoverPanic(next http.Handler) http.Handler {
 
 // SecureHeaders is a middleware which adds HTTP security headers
 // to every response, inline with current OWASP guidance.
-// .
 func SecureHeaders(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Referrer-Policy", "origin-when-cross-origin")
@@ -113,7 +109,6 @@ func SecureHeaders(next http.Handler) http.Handler {
 
 // CacheControl is a middleware which sets the caching policy for assets.
 // Defaults to 2 days.
-// .
 func CacheControl(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "max-age=172800")
@@ -123,7 +118,6 @@ func CacheControl(next http.Handler) http.Handler {
 }
 
 // CacheControlWithAge is a middleware which sets the caching policy for assets.
-// .
 func CacheControlWithAge(age int) func(http.Handler) http.Handler {
 	maxAge := fmt.Sprintf("max-age=%d", age)
 
@@ -146,7 +140,6 @@ func CacheControlWithAge(age int) func(http.Handler) http.Handler {
 
 // NotFound is a middleware which returns a 404 Not Found error
 // if the request path is not "/".
-// .
 func NotFound(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -160,7 +153,6 @@ func NotFound(next http.Handler) http.Handler {
 
 // NotFound is a middleware which returns a 404 Not Found json error
 // if the request path is not "/".
-// .
 func NotFoundJson(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -183,12 +175,10 @@ func NotFoundJson(next http.Handler) http.Handler {
 // HandlerFunc is a custom http handler signature which accepts
 // an http.ResponseWriter, *http.Request and returns an error.
 // HandlerFuncs must be converted into an http.Handler with the MakeHandler middleware.
-// .
 type HandlerFunc func(http.ResponseWriter, *http.Request) error
 
 // MakeHandler is a middleware which converts a rio.HandlerFunc to an http.Handler.
 // It centralizes the error handling with the custom AppError error type.
-// .
 func MakeHandler(next HandlerFunc) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		// Run the handler and check for errors.
