@@ -81,3 +81,11 @@ func WrapTime(val time.Time) func() time.Time {
 		return val
 	}
 }
+
+// WrapItems wraps a list of any type in a func.
+// This is used to inject values into the template.FuncMap.
+func WrapItems[T any](vals []T) func() []T {
+	return func() []T {
+		return vals
+	}
+}
