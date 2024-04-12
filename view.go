@@ -1,7 +1,6 @@
 package rio
 
 import (
-	"bytes"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -84,7 +83,8 @@ func NewView(templatesFS fs.FS, opts ...ViewOpt) *View {
 
 // Render writes a template to the http.ResponseWriter.
 func (v *View) Render(w http.ResponseWriter, page string, status int, data any) error {
-	buf := new(bytes.Buffer)
+	buf := getBuffer()
+	defer putBuffer(buf)
 
 	// Write the template to the buffer first.
 	if err := v.templates.ExecuteTemplate(buf, page, data); err != nil {
