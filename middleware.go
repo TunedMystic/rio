@@ -1,6 +1,7 @@
 package rio
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -184,7 +185,8 @@ func MakeHandler(next HandlerFunc) http.Handler {
 		// Run the handler and check for errors.
 		if err := next(w, r); err != nil {
 			// If the error is an AppError, then write it to the ResponseWriter.
-			if appErr, ok := err.(*AppError); ok {
+			var appErr AppError
+			if errors.As(err, &appErr) {
 				if writeErr := appErr.WriteTo(w); writeErr != nil {
 					LogError(writeErr)
 					Http500(w)
