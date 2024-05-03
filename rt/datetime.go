@@ -10,6 +10,16 @@ func Date(d time.Time) string {
 	return d.Format("2006-01-02")
 }
 
+// Time formats a time.Time to a string like "3:04 PM".
+func Time(d time.Time) string {
+	return d.Format("3:04 PM")
+}
+
+// DateTime formats a time.Time to a string like "January 02, 2006, 3:04 PM".
+func DateTime(d time.Time) string {
+	return d.Format("January 02, 2006, 3:04 PM")
+}
+
 // DateNatural formats a time.Time to a string like "January 2, 2006".
 func DateNatural(d time.Time) string {
 	return d.Format("January 2, 2006")

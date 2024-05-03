@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+
+	"github.com/tunedmystic/rio/rt"
 )
 
 // ------------------------------------------------------------------
@@ -112,10 +114,10 @@ func constructView(templatesFS fs.FS, opts ...ViewOpt) (*View, error) {
 	}
 
 	// Set the default template functions.
-	v.funcMap["safe"] = DisplaySafeHTML
-	v.funcMap["time"] = DisplayTime
-	v.funcMap["date"] = DisplayDate
-	v.funcMap["datetime"] = DisplayDateTime
+	v.funcMap["safe"] = rt.SafeHtml
+	v.funcMap["time"] = rt.Time
+	v.funcMap["date"] = rt.Date
+	v.funcMap["datetime"] = rt.DateTime
 
 	// Configure the View with with ViewOpt funcs, if any.
 	for i := range opts {
