@@ -10,7 +10,7 @@ type AppError struct {
 }
 
 // Error satisfies the error interface.
-func (a *AppError) Error() string {
+func (a AppError) Error() string {
 	return a.Message
 }
 
@@ -18,7 +18,7 @@ func (a *AppError) Error() string {
 //
 // If the AppError is Json, then a json object containing the message will be written.
 // If the AppError is not Json, then a plain text message will be written.
-func (a *AppError) WriteTo(w http.ResponseWriter) error {
+func (a AppError) WriteTo(w http.ResponseWriter) error {
 	if a.IsJson {
 		return writeJson(w, a.Message, a.Status)
 	}
@@ -27,18 +27,18 @@ func (a *AppError) WriteTo(w http.ResponseWriter) error {
 	return nil
 }
 
-// HttpError constructs and returns an Http *AppError.
-func HttpError(message string, status int) *AppError {
-	return &AppError{
+// HttpError constructs and returns an Http AppError.
+func HttpError(message string, status int) AppError {
+	return AppError{
 		Message: message,
 		Status:  status,
 		IsJson:  false,
 	}
 }
 
-// JsonError constructs and returns a Json *AppError.
-func JsonError(message string, status int) *AppError {
-	return &AppError{
+// JsonError constructs and returns a Json AppError.
+func JsonError(message string, status int) AppError {
+	return AppError{
 		Message: message,
 		Status:  status,
 		IsJson:  true,
