@@ -24,7 +24,6 @@ import (
 
 // Form is a type which parses and validates form data.
 //
-// It is initialized with a data map, containing values to process.
 // Values can be parsed into a desired type, like an int, date, bool, etc.
 // Validation functions can also be provided, which ensures that
 // the parsed type is properly vetted before being retrieved.
@@ -32,11 +31,13 @@ type Form struct {
 	values  map[string]string
 	cleaned map[string]Field
 	errors  map[string]error
+
+	extraerrors []error
 }
 
 // New constructs and returns a Form.
-func New() Form {
-	return Form{}
+func New() *Form {
+	return &Form{}
 }
 
 // ------------------------------------------------------------------
@@ -47,34 +48,41 @@ func New() Form {
 //
 // ------------------------------------------------------------------
 
-// Clean the value as a string.
+// CleanString cleans the given value as a string.
 func (f *Form) CleanString(name, value string, funcs ...CheckFunc) {
 	f.parseAndClean(name, value, parseString, funcs...)
 }
 
-// Clean the value as a integer.
+// CleanInteger cleans the given value as a integer.
 func (f *Form) CleanInteger(name, value string, funcs ...CheckFunc) {
 	f.parseAndClean(name, value, parseInteger, funcs...)
 }
 
-// Clean the value as a float.
+// CleanFloat cleans the given value as a float.
 func (f *Form) CleanFloat(name, value string, funcs ...CheckFunc) {
 	f.parseAndClean(name, value, parseFloat, funcs...)
 }
 
-// Clean the value as a bool.
+// CleanBool cleans the given value as a bool.
 func (f *Form) CleanBool(name, value string, funcs ...CheckFunc) {
 	f.parseAndClean(name, value, parseBool, funcs...)
 }
 
-// Clean the value as a date.
+// CleanDate cleans the given value as a date.
 func (f *Form) CleanDate(name, value string, funcs ...CheckFunc) {
 	f.parseAndClean(name, value, parseDate, funcs...)
 }
 
-// Clean the value as a decimal.
+// CleanDecimal cleans the given value as a decimal.
 func (f *Form) CleanDecimal(name, value string, funcs ...CheckFunc) {
 	f.parseAndClean(name, value, parseDecimal, funcs...)
+}
+
+// CleanExtra adds the error to the errors list if the condition is true.
+func (f *Form) CleanExtra(cond bool, err error) {
+	if cond {
+		f.addExtraError(err)
+	}
 }
 
 // ------------------------------------------------------------------
@@ -85,32 +93,32 @@ func (f *Form) CleanDecimal(name, value string, funcs ...CheckFunc) {
 //
 // ------------------------------------------------------------------
 
-// Retrieve the cleaned string.
+// CleanedString retrieves the named field as a string.
 func (f *Form) CleanedString(name string) string {
 	return f.MustField(name).String
 }
 
-// Retrieve the cleaned integer.
+// CleanedInteger retrieves the named field as an integer.
 func (f *Form) CleanedInteger(name string) int {
 	return f.MustField(name).Integer
 }
 
-// Retrieve the cleaned float.
+// CleanedFloat retrieves the named field as a float.
 func (f *Form) CleanedFloat(name string) float64 {
 	return f.MustField(name).Float
 }
 
-// Retrieve the cleaned bool.
+// CleanedBool retrieves the named field as a bool.
 func (f *Form) CleanedBool(name string) bool {
 	return f.MustField(name).Bool
 }
 
-// Retrieve the cleaned date.
+// CleanedDate retrieves the named field as a date.
 func (f *Form) CleanedDate(name string) time.Time {
 	return f.MustField(name).Date
 }
 
-// Retrieve the cleaned decimal.
+// CleanedDecimal retrieves the named field as a decimal.
 func (f *Form) CleanedDecimal(name string) big.Rat {
 	return f.MustField(name).Decimal
 }
@@ -125,12 +133,17 @@ func (f *Form) CleanedDecimal(name string) big.Rat {
 
 // IsValid returns true if the errors map contains no errors.
 func (f *Form) IsValid() bool {
-	return len(f.errors) == 0
+	return len(f.errors) == 0 && len(f.extraerrors) == 0
 }
 
 // HasError returns true if the errors map contains the target error.
 func (f *Form) HasError(target any) bool {
 	for _, err := range f.errors {
+		if errors.As(err, target) {
+			return true
+		}
+	}
+	for _, err := range f.extraerrors {
 		if errors.As(err, target) {
 			return true
 		}
@@ -146,30 +159,19 @@ func (f *Form) HasError(target any) bool {
 //
 // ------------------------------------------------------------------
 
-// Retrieve the original, uncleaned value of a field.
-func (f Form) Value(name string) string {
+// Value returns the original, uncleaned value of a field.
+func (f *Form) Value(name string) string {
 	if f.values == nil {
 		return ""
 	}
 	return f.values[name]
 }
 
-// Retrieve the error for a field.
-//
-// When a clean function fails, the errors map will be
-// populated with the error.
-func (f Form) Error(name string) error {
-	if f.errors == nil {
-		return nil
-	}
-	return f.errors[name]
-}
-
-// Retrieve the cleaned Field.
+// Field returns the cleaned Field.
 //
 // When a clean function is successful, the cleaned map will be
 // populated with the parsed value, as a Field.
-func (f Form) Field(name string) (Field, bool) {
+func (f *Form) Field(name string) (Field, bool) {
 	if f.cleaned == nil {
 		return Field{}, false
 	}
@@ -177,13 +179,49 @@ func (f Form) Field(name string) (Field, bool) {
 	return field, ok
 }
 
-// MustField retrieves the desired Field and panics if it does not exist.
+// MustField returns the desired Field and panics if it does not exist.
 func (f *Form) MustField(name string) Field {
 	field, ok := f.Field(name)
 	if !ok {
 		panic(fmt.Sprintf("failed to get field %s", name))
 	}
 	return field
+}
+
+// ------------------------------------------------------------------
+//
+//
+// Form Getters for Errors
+//
+//
+// ------------------------------------------------------------------
+
+// Error returns the error for a field.
+//
+// When a clean function fails, the errors map will be
+// populated with the error.
+func (f *Form) Error(name string) error {
+	if f.errors == nil {
+		return nil
+	}
+	return f.errors[name]
+}
+
+// ErrorNames returns the names of the fields with errors.
+func (f *Form) ErrorNames() []string {
+	var names []string
+	for name := range f.errors {
+		names = append(names, name)
+	}
+	return names
+}
+
+// ExtraErrors returns the errors slice.
+//
+// When a custom check fails, the errors slice will be
+// populated with the error.
+func (f *Form) ExtraErrors() []error {
+	return f.extraerrors
 }
 
 // ------------------------------------------------------------------
@@ -200,7 +238,7 @@ func (f *Form) MustField(name string) Field {
 // Second, the Field is validated against the provided check functions.
 //
 // If the First and Second steps are succesful, the Field is added to the cleaned map.
-// If the First or Second steps are not successful, the error is added to the error map.
+// If the First or Second steps are not successful, the error is added to the errors map.
 func (f *Form) parseAndClean(name, value string, parse ParseFunc, checks ...CheckFunc) {
 	// If the value is already processed, then skip.
 	if f.isProcessed(name) {
@@ -261,6 +299,11 @@ func (f *Form) addError(name string, err error) {
 	if _, exists := f.errors[name]; !exists {
 		f.errors[name] = err
 	}
+}
+
+// addExtraError adds the error to the extra errors list.
+func (f *Form) addExtraError(err error) {
+	f.extraerrors = append(f.extraerrors, err)
 }
 
 // isProcessed returns true if the value exists in the cleaned or errors map.
