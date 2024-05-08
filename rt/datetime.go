@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Date formats a time.Time to a string like "2006-01-02".
+// Date formats a time.Time to a string like "2006-01-02" (yyyy-mm-dd).
 func Date(d time.Time) string {
 	return d.Format("2006-01-02")
 }
@@ -25,12 +25,12 @@ func DateNatural(d time.Time) string {
 	return d.Format("January 2, 2006")
 }
 
-// DateSlug formats a time.Time to a string like "January-2-2006".
+// DateSlug formats a time.Time to a string like "january-2-2006".
 func DateSlug(d time.Time) string {
 	return strings.ToLower(d.Format("January-2-2006"))
 }
 
-// DateSlugIntl formats a time.Time to a string like "2-January-2006".
+// DateSlugIntl formats a time.Time to a string like "2-january-2006".
 func DateSlugIntl(d time.Time) string {
 	return strings.ToLower(d.Format("2-January-2006"))
 }
