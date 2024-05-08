@@ -10,6 +10,11 @@ func Today() time.Time {
 	return TrimTime(time.Now().UTC())
 }
 
+// CurrentYear returns the current year as a int.
+func CurrentYear() int {
+	return time.Now().Year()
+}
+
 // TrimTime erases the hh:mm:ss:ns of the given time.Time.
 func TrimTime(d time.Time) time.Time {
 	return time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, d.Location())
@@ -42,10 +47,18 @@ func WrapItem[T any](val T) func() T {
 	}
 }
 
-// WrapItems wraps a slice of any type in a func.
+// WrapSlice wraps a slice of any type in a func.
 // This is used to inject values into the template.FuncMap.
-func WrapItems[T any](vals []T) func() []T {
+func WrapSlice[T any](val []T) func() []T {
 	return func() []T {
-		return vals
+		return val
+	}
+}
+
+// WrapMap wraps a map of type [string]any in a func.
+// This is used to inject values into the template.FuncMap.
+func WrapMap[T any](val map[string]T) func() map[string]T {
+	return func() map[string]T {
+		return val
 	}
 }

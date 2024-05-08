@@ -8,13 +8,13 @@ import (
 )
 
 // Integer formats an integer to a string based on a user-specified format.
-func Integer(format string, n int) string {
-	return renderFloat(format, float64(n))
+func Integer(n int, format string) string {
+	return renderFloat(float64(n), format)
 }
 
 // Float formats a float64 to a string based on a user-specified format.
-func Float(format string, n float64) string {
-	return renderFloat(format, n)
+func Float(n float64, format string) string {
+	return renderFloat(n, format)
 }
 
 // Decimal formats a big.Rat to a string.
@@ -24,12 +24,12 @@ func Decimal(n big.Rat) string {
 
 // IntegerTrimZero formats an integer to a string and removes the trailing ".00", if any.
 func IntegerTrimZero(n int, format string) string {
-	return TrimZero(Integer(format, n))
+	return TrimZero(Integer(n, format))
 }
 
 // FloatTrimZero formats a float64 to a string and removes the trailing ".00", if any.
 func FloatTrimZero(n float64, format string) string {
-	return TrimZero(Float(format, n))
+	return TrimZero(Float(n, format))
 }
 
 // Decimal formats a big.Rat to a string and removes trailing "0"s, if any.
@@ -37,10 +37,46 @@ func DecimalTrimZero(n big.Rat) string {
 	return strings.TrimRight(strings.TrimRight(Decimal(n), "0"), ".")
 }
 
+// Ordinal formats an integer to ordinal format string (1st, 2nd, 3rd, etc).
+func Ordinal(n int) string {
+	return ordinal(n)
+}
+
 // ------------------------------------------------------------------
 //
 //
-// internal
+// internal - ordinal
+//
+//
+// ------------------------------------------------------------------
+
+// ordinal formats an integer to ordinal format string (1st, 2nd, 3rd, etc).
+//
+// All credit goes to the original author.
+// Ref: https://github.com/dustin/go-humanize/blob/master/ordinals.go
+func ordinal(n int) string {
+	suffix := "th"
+	switch n % 10 {
+	case 1:
+		if n%100 != 11 {
+			suffix = "st"
+		}
+	case 2:
+		if n%100 != 12 {
+			suffix = "nd"
+		}
+	case 3:
+		if n%100 != 13 {
+			suffix = "rd"
+		}
+	}
+	return strconv.Itoa(n) + suffix
+}
+
+// ------------------------------------------------------------------
+//
+//
+// internal - renderFloat
 //
 //
 // ------------------------------------------------------------------
@@ -62,7 +98,7 @@ func DecimalTrimZero(n big.Rat) string {
 //
 // All credit goes to the original author.
 // Ref: https://gist.github.com/gorhill/5285193
-func renderFloat(format string, n float64) string {
+func renderFloat(n float64, format string) string {
 	// Special cases:
 	//   NaN = "NaN"
 	//   +Inf = "+Infinity"
