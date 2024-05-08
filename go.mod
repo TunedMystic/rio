@@ -1,3 +1,3 @@
 module github.com/tunedmystic/rio
 
-go 1.22.0
+go 1.22.3
