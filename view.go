@@ -6,8 +6,6 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
-
-	"github.com/tunedmystic/rio/rt"
 )
 
 // ------------------------------------------------------------------
@@ -114,10 +112,7 @@ func constructView(templatesFS fs.FS, opts ...ViewOpt) (*View, error) {
 	}
 
 	// Set the default template functions.
-	v.funcMap["safe"] = rt.SafeHtml
-	v.funcMap["time"] = rt.Time
-	v.funcMap["date"] = rt.Date
-	v.funcMap["datetime"] = rt.DateTime
+	v.funcMap["safe"] = safeHtml
 
 	// Configure the View with with ViewOpt funcs, if any.
 	for i := range opts {
@@ -152,4 +147,42 @@ func constructView(templatesFS fs.FS, opts ...ViewOpt) (*View, error) {
 	})
 
 	return v, err
+}
+
+// ------------------------------------------------------------------
+//
+//
+// Helpers
+//
+//
+// ------------------------------------------------------------------
+
+// WrapItem wraps a value of any type in a func.
+// This is used to inject values into the template.FuncMap.
+func WrapItem[T any](val T) func() T {
+	return func() T {
+		return val
+	}
+}
+
+// WrapSlice wraps a slice of any type in a func.
+// This is used to inject values into the template.FuncMap.
+func WrapSlice[T any](val []T) func() []T {
+	return func() []T {
+		return val
+	}
+}
+
+// WrapMap wraps a map of type [string]any in a func.
+// This is used to inject values into the template.FuncMap.
+func WrapMap[T any](val map[string]T) func() map[string]T {
+	return func() map[string]T {
+		return val
+	}
+}
+
+// safeHtml converts a string into an HTML fragment, so that
+// it can be rendered verbatim in the template.
+func safeHtml(content string) template.HTML {
+	return template.HTML(content)
 }

@@ -1,3 +1,4 @@
+// Package forms implements utilities to parse and validate data.
 package forms
 
 import (
@@ -11,7 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/tunedmystic/rio/rt"
+	"github.com/tunedmystic/rio/format"
 )
 
 // ------------------------------------------------------------------
@@ -471,7 +472,7 @@ func parseDate(val string) (Field, error) {
 		return Field{isBlank: true}, nil
 	}
 
-	date, err := rt.ParseDate(val)
+	date, err := format.ParseDate(val)
 	if err != nil {
 		return Field{}, errParseDate
 	}
@@ -800,7 +801,7 @@ func DecLt(n string) CheckFunc {
 		}
 		// Check if v >= nn.
 		if r := v.Decimal.Cmp(&nn.Decimal); (r == 0) || (r == 1) {
-			return fmt.Errorf(errLessThan, rt.Decimal(nn.Decimal))
+			return fmt.Errorf(errLessThan, format.Decimal(nn.Decimal))
 		}
 		return nil
 	}
@@ -816,7 +817,7 @@ func DecLte(n string) CheckFunc {
 		}
 		// Check if v > nn.
 		if r := v.Decimal.Cmp(&nn.Decimal); r == 1 {
-			return fmt.Errorf(errLessThanOrEqual, rt.Decimal(nn.Decimal))
+			return fmt.Errorf(errLessThanOrEqual, format.Decimal(nn.Decimal))
 		}
 		return nil
 	}
@@ -832,7 +833,7 @@ func DecGt(n string) CheckFunc {
 		}
 		// Check if v <= nn.
 		if r := v.Decimal.Cmp(&nn.Decimal); (r == -1) || (r == 0) {
-			return fmt.Errorf(errGreaterThan, rt.Decimal(nn.Decimal))
+			return fmt.Errorf(errGreaterThan, format.Decimal(nn.Decimal))
 		}
 		return nil
 	}
@@ -848,7 +849,7 @@ func DecGte(n string) CheckFunc {
 		}
 		// Check if v < nn.
 		if r := v.Decimal.Cmp(&nn.Decimal); r == -1 {
-			return fmt.Errorf(errGreaterThanOrEqual, rt.Decimal(nn.Decimal))
+			return fmt.Errorf(errGreaterThanOrEqual, format.Decimal(nn.Decimal))
 		}
 		return nil
 	}
@@ -874,7 +875,7 @@ func DecBtw(n, m string) CheckFunc {
 		nr := v.Decimal.Cmp(&nn.Decimal)
 		mr := v.Decimal.Cmp(&mm.Decimal)
 		if (nr == -1) || (mr == 1) {
-			return fmt.Errorf(errBetween, rt.Decimal(nn.Decimal), rt.Decimal(mm.Decimal))
+			return fmt.Errorf(errBetween, format.Decimal(nn.Decimal), format.Decimal(mm.Decimal))
 		}
 		return nil
 	}
@@ -907,7 +908,7 @@ func DtBefore(n string) CheckFunc {
 			return errInvalidConfig
 		}
 		if !v.Date.Before(nn.Date) {
-			return fmt.Errorf(errBefore, rt.DateNatural(nn.Date))
+			return fmt.Errorf(errBefore, format.DateNatural(nn.Date))
 		}
 		return nil
 	}
@@ -922,7 +923,7 @@ func DtAfter(n string) CheckFunc {
 			return errInvalidConfig
 		}
 		if !v.Date.After(nn.Date) {
-			return fmt.Errorf(errAfter, rt.DateNatural(nn.Date))
+			return fmt.Errorf(errAfter, format.DateNatural(nn.Date))
 		}
 		return nil
 	}
@@ -931,7 +932,7 @@ func DtAfter(n string) CheckFunc {
 // Checks that a date is in the past.
 func DtInPast() CheckFunc {
 	return func(v Field) error {
-		if !v.Date.Before(rt.Today()) {
+		if !v.Date.Before(format.Today()) {
 			return fmt.Errorf(errBefore, "the current date")
 		}
 		return nil
@@ -941,7 +942,7 @@ func DtInPast() CheckFunc {
 // Checks that a date is in the future.
 func DtInFuture() CheckFunc {
 	return func(v Field) error {
-		if !v.Date.After(rt.Today()) {
+		if !v.Date.After(format.Today()) {
 			return fmt.Errorf(errAfter, "the current date")
 		}
 		return nil
