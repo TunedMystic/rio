@@ -1,9 +1,17 @@
-package rt
+package format
 
 import (
 	"strings"
 	"time"
 )
+
+// ------------------------------------------------------------------
+//
+//
+// DateTime Formatters
+//
+//
+// ------------------------------------------------------------------
 
 // Date formats a time.Time to a string like "2006-01-02" (yyyy-mm-dd).
 func Date(d time.Time) string {
@@ -34,6 +42,24 @@ func DateSlug(d time.Time) string {
 func DateSlugIntl(d time.Time) string {
 	return strings.ToLower(d.Format("2-January-2006"))
 }
+
+// Today returns a time.Time equal to the current day (Time trimmed. Only year, month, day).
+func Today() time.Time {
+	return TrimTime(time.Now().UTC())
+}
+
+// TrimTime erases the hh:mm:ss:ns of the given time.Time.
+func TrimTime(d time.Time) time.Time {
+	return time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, d.Location())
+}
+
+// ------------------------------------------------------------------
+//
+//
+// Date Parsers
+//
+//
+// ------------------------------------------------------------------
 
 var dateFormats = []string{
 	"2006-01-02",      // Short

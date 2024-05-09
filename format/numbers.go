@@ -1,4 +1,4 @@
-package rt
+package format
 
 import (
 	"math"
@@ -6,6 +6,14 @@ import (
 	"strconv"
 	"strings"
 )
+
+// ------------------------------------------------------------------
+//
+//
+// Number Formatters
+//
+//
+// ------------------------------------------------------------------
 
 // Integer formats an integer to a string based on a user-specified format.
 func Integer(n int, format string) string {
@@ -22,6 +30,11 @@ func Decimal(n big.Rat) string {
 	return n.FloatString(2)
 }
 
+// Ordinal formats an integer to ordinal format string (1st, 2nd, 3rd, etc).
+func Ordinal(n int) string {
+	return ordinal(n)
+}
+
 // IntegerTrimZero formats an integer to a string and removes the trailing ".00", if any.
 func IntegerTrimZero(n int, format string) string {
 	return TrimZero(Integer(n, format))
@@ -32,14 +45,28 @@ func FloatTrimZero(n float64, format string) string {
 	return TrimZero(Float(n, format))
 }
 
-// Decimal formats a big.Rat to a string and removes trailing "0"s, if any.
+// DecimalTrimZero formats a big.Rat to a string and removes the trailing ".00", if any.
 func DecimalTrimZero(n big.Rat) string {
-	return strings.TrimRight(strings.TrimRight(Decimal(n), "0"), ".")
+	return TrimZero(Decimal(n))
 }
 
-// Ordinal formats an integer to ordinal format string (1st, 2nd, 3rd, etc).
-func Ordinal(n int) string {
-	return ordinal(n)
+// TrimZero removes the trailing ".00" from a string.
+func TrimZero(s string) string {
+	return strings.TrimRight(strings.TrimRight(s, "0"), ".")
+}
+
+// Plural returns the singular term if n == 1, and returns
+// the plural value if n != 1.
+func Plural[T Num](n T, singular, plural string) string {
+	if n == T(1) {
+		return singular
+	}
+	return plural
+}
+
+// Num represents integers and floating-point values.
+type Num interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~float32 | ~float64
 }
 
 // ------------------------------------------------------------------
