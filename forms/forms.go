@@ -29,10 +29,7 @@ import (
 // Validation functions can also be provided, which ensures that
 // the parsed type is properly vetted before being retrieved.
 type Form struct {
-	values  map[string]string
-	cleaned map[string]Field
-	errors  map[string]error
-
+	fields      map[string]*Field
 	extraerrors []error
 }
 
@@ -79,10 +76,10 @@ func (f *Form) CleanDecimal(name, value string, funcs ...CheckFunc) {
 	f.parseAndClean(name, value, parseDecimal, funcs...)
 }
 
-// CleanExtra adds the error to the errors list if the condition is true.
+// CleanExtra adds the error to the extra errors list if the condition is true.
 func (f *Form) CleanExtra(cond bool, err error) {
 	if cond {
-		f.addExtraError(err)
+		f.extraerrors = append(f.extraerrors, err)
 	}
 }
 
@@ -132,15 +129,20 @@ func (f *Form) CleanedDecimal(name string) big.Rat {
 //
 // ------------------------------------------------------------------
 
-// IsValid returns true if the errors map contains no errors.
+// IsValid returns true if there are no field errors and no extra errors.
 func (f *Form) IsValid() bool {
-	return len(f.errors) == 0 && len(f.extraerrors) == 0
+	for _, field := range f.fields {
+		if field.Err() != nil {
+			return false
+		}
+	}
+	return len(f.extraerrors) == 0
 }
 
 // HasError returns true if the errors map contains the target error.
 func (f *Form) HasError(target any) bool {
-	for _, err := range f.errors {
-		if errors.As(err, target) {
+	for _, field := range f.fields {
+		if errors.As(field.Err(), target) {
 			return true
 		}
 	}
@@ -155,29 +157,27 @@ func (f *Form) HasError(target any) bool {
 // ------------------------------------------------------------------
 //
 //
-// Form Getters for Map Items
+// Form Getters for Fields and Errors
 //
 //
 // ------------------------------------------------------------------
 
-// Value returns the original, uncleaned value of a field.
-func (f *Form) Value(name string) string {
-	if f.values == nil {
-		return ""
+// Names returns the field names.
+func (f *Form) Names() []string {
+	names := make([]string, 0, len(f.fields))
+	for name := range f.fields {
+		names = append(names, name)
 	}
-	return f.values[name]
+	return names
 }
 
-// Field returns the cleaned Field.
-//
-// When a clean function is successful, the cleaned map will be
-// populated with the parsed value, as a Field.
+// Field returns the Field mapped to the given name.
 func (f *Form) Field(name string) (Field, bool) {
-	if f.cleaned == nil {
+	if f.fields == nil {
 		return Field{}, false
 	}
-	field, ok := f.cleaned[name]
-	return field, ok
+	field, ok := f.fields[name]
+	return *field, ok
 }
 
 // MustField returns the desired Field and panics if it does not exist.
@@ -189,38 +189,7 @@ func (f *Form) MustField(name string) Field {
 	return field
 }
 
-// ------------------------------------------------------------------
-//
-//
-// Form Getters for Errors
-//
-//
-// ------------------------------------------------------------------
-
-// Error returns the error for a field.
-//
-// When a clean function fails, the errors map will be
-// populated with the error.
-func (f *Form) Error(name string) error {
-	if f.errors == nil {
-		return nil
-	}
-	return f.errors[name]
-}
-
-// ErrorNames returns the names of the fields with errors.
-func (f *Form) ErrorNames() []string {
-	var names []string
-	for name := range f.errors {
-		names = append(names, name)
-	}
-	return names
-}
-
-// ExtraErrors returns the errors slice.
-//
-// When a custom check fails, the errors slice will be
-// populated with the error.
+// ExtraErrors returns the extra errors slice.
 func (f *Form) ExtraErrors() []error {
 	return f.extraerrors
 }
@@ -236,109 +205,42 @@ func (f *Form) ExtraErrors() []error {
 // parseAndClean is the internal function for the cleaning workflow.
 //
 // First, the value is parsed into the desired type, as a Field.
-// Second, the Field is validated against the provided check functions.
+// Then, the Field is validated against the provided check functions.
 //
-// If the First and Second steps are succesful, the Field is added to the cleaned map.
-// If the First or Second steps are not successful, the error is added to the errors map.
+// Any error encountered in the parsing or validation step is added to the Field.
 func (f *Form) parseAndClean(name, value string, parse ParseFunc, checks ...CheckFunc) {
-	// If the value is already processed, then skip.
-	if f.isProcessed(name) {
+	// If the field already exists, then skip.
+	if _, ok := f.fields[name]; ok {
 		return
 	}
 
-	// Keep a copy of the value.
-	f.addValue(name, value)
-
 	// Parse the value.
-	field, err := parse(value)
-	if err != nil {
-		f.addError(name, err)
+	field := parse(value)
+	f.addField(name, &field)
+
+	if field.Err() != nil {
 		return
 	}
 
 	// Validate the field.
 	for i := range checks {
 		if err := checks[i](field); err != nil {
-			f.addError(name, err)
+			field.addError(err)
 			return
 		}
 	}
-
-	// At this point, the field has passed all check functions.
-	// In this case, add the field to the cleaned map.
-	f.addField(name, field)
 }
 
-// addValue adds the value into the values map.
-func (f *Form) addValue(name, val string) {
-	if f.values == nil {
-		f.values = make(map[string]string)
+// addField adds the field into the fields map.
+func (f *Form) addField(name string, val *Field) {
+	if f.fields == nil {
+		f.fields = make(map[string]*Field)
 	}
 
-	if _, exists := f.values[name]; !exists {
-		f.values[name] = val
+	if _, exists := f.fields[name]; !exists {
+		f.fields[name] = val
 	}
 }
-
-// addField adds the field into the cleaned map.
-func (f *Form) addField(name string, val Field) {
-	if f.cleaned == nil {
-		f.cleaned = make(map[string]Field)
-	}
-
-	if _, exists := f.cleaned[name]; !exists {
-		f.cleaned[name] = val
-	}
-}
-
-// addError adds the error into the errors map.
-func (f *Form) addError(name string, err error) {
-	if f.errors == nil {
-		f.errors = make(map[string]error)
-	}
-
-	if _, exists := f.errors[name]; !exists {
-		f.errors[name] = err
-	}
-}
-
-// addExtraError adds the error to the extra errors list.
-func (f *Form) addExtraError(err error) {
-	f.extraerrors = append(f.extraerrors, err)
-}
-
-// isProcessed returns true if the value exists in the cleaned or errors map.
-func (f *Form) isProcessed(name string) bool {
-	_, inCleaned := f.cleaned[name]
-	_, inErrors := f.errors[name]
-	return inCleaned || inErrors
-}
-
-// ------------------------------------------------------------------
-//
-//
-// Type: Field
-//
-//
-// ------------------------------------------------------------------
-
-// Field represents a parsed value.
-type Field struct {
-	String  string
-	Integer int
-	Float   float64
-	Bool    bool
-	Decimal big.Rat
-	Date    time.Time
-
-	isBlank bool
-}
-
-// ParseFunc is a function which parses a value into the desired type, as a Field.
-type ParseFunc func(string) (Field, error)
-
-// CheckFunc is a function which validates a Field.
-type CheckFunc func(Field) error
 
 // ------------------------------------------------------------------
 //
@@ -397,87 +299,139 @@ var (
 // ------------------------------------------------------------------
 //
 //
-// Parse Functions
+// Type: Field
+//
+//
+// ------------------------------------------------------------------
+
+// Field represents a parsed value.
+type Field struct {
+	value   string
+	err     error
+	isBlank bool
+
+	String  string
+	Integer int
+	Float   float64
+	Bool    bool
+	Decimal big.Rat
+	Date    time.Time
+}
+
+// Value returns the field's original value.
+func (f *Field) Value() string {
+	return f.value
+}
+
+// IsBlank returns true if the field's original value is empty.
+// This is used to distinguish between the field's zero value and if the field is empty.
+func (f *Field) IsBlank() bool {
+	return f.isBlank
+}
+
+// Err returns the error associated with the field's parsing or validation.
+func (f *Field) Err() error {
+	return f.err
+}
+
+// addError adds the error to the field.
+func (f *Field) addError(err error) {
+	if f.err != nil {
+		return
+	}
+	f.err = err
+}
+
+// ParseFunc is a function which parses a value into the desired type, as a Field.
+type ParseFunc func(string) Field
+
+// CheckFunc is a function which validates a Field.
+type CheckFunc func(Field) error
+
+// ------------------------------------------------------------------
+//
+//
+// Field Parse Functions
 //
 //
 // ------------------------------------------------------------------
 
 // parseString parses the value into a string Field.
-func parseString(val string) (Field, error) {
+func parseString(val string) Field {
 	if val == "" {
-		return Field{isBlank: true}, nil
+		return Field{isBlank: true}
 	}
-	return Field{String: strings.TrimSpace(val)}, nil
+	return Field{String: strings.TrimSpace(val)}
 }
 
 // parseInteger parses the value into an integer Field.
-func parseInteger(val string) (Field, error) {
+func parseInteger(val string) Field {
 	if val == "" {
-		return Field{isBlank: true}, nil
+		return Field{isBlank: true}
 	}
 
 	num, err := strconv.ParseInt(val, 10, 64)
 	if err != nil {
-		return Field{}, errParseInt
+		return Field{err: errParseInt}
 	}
 
-	return Field{Integer: int(num)}, nil
+	return Field{Integer: int(num)}
 }
 
 // parseFloat parses the value into a float64 Field.
-func parseFloat(val string) (Field, error) {
+func parseFloat(val string) Field {
 	if val == "" {
-		return Field{isBlank: true}, nil
+		return Field{isBlank: true}
 	}
 
 	num, err := strconv.ParseFloat(val, 64)
 	if err != nil {
-		return Field{}, errParseFloat
+		return Field{err: errParseFloat}
 	}
 
-	return Field{Float: num}, nil
+	return Field{Float: num}
 }
 
 // parseBool parses the value into a bool Field.
-func parseBool(val string) (Field, error) {
+func parseBool(val string) Field {
 	if val == "" {
-		return Field{isBlank: true}, nil
+		return Field{isBlank: true}
 	}
 
 	b, err := strconv.ParseBool(val)
 	if err != nil {
-		return Field{}, errParseBool
+		return Field{err: errParseBool}
 	}
 
-	return Field{Bool: b}, nil
+	return Field{Bool: b}
 }
 
 // parseDecimal parses the value into a decimal Field.
-func parseDecimal(val string) (Field, error) {
+func parseDecimal(val string) Field {
 	if val == "" {
-		return Field{isBlank: true}, nil
+		return Field{isBlank: true}
 	}
 
 	br, ok := new(big.Rat).SetString(val)
 	if !ok {
-		return Field{}, errParseBigRat
+		return Field{err: errParseBigRat}
 	}
 
-	return Field{Decimal: *br}, nil
+	return Field{Decimal: *br}
 }
 
 // parseDate parses the value into a date Field.
-func parseDate(val string) (Field, error) {
+func parseDate(val string) Field {
 	if val == "" {
-		return Field{isBlank: true}, nil
+		return Field{isBlank: true}
 	}
 
 	date, err := format.ParseDate(val)
 	if err != nil {
-		return Field{}, errParseDate
+		return Field{err: errParseDate}
 	}
 
-	return Field{Date: date}, nil
+	return Field{Date: date}
 }
 
 // ------------------------------------------------------------------
@@ -491,7 +445,7 @@ func parseDate(val string) (Field, error) {
 // Checks that a string is not blank.
 func StrRequired() CheckFunc {
 	return func(v Field) error {
-		if v.isBlank {
+		if v.IsBlank() {
 			return errBlankValue
 		}
 		return nil
@@ -604,7 +558,7 @@ func StrUrl() CheckFunc {
 // Checks that an int is not blank.
 func IntRequired() CheckFunc {
 	return func(v Field) error {
-		if v.isBlank {
+		if v.IsBlank() {
 			return errBlankValue
 		}
 		return nil
@@ -685,7 +639,7 @@ func IntIn(choices []int) CheckFunc {
 // Checks that a float is not blank.
 func FltRequired() CheckFunc {
 	return func(v Field) error {
-		if v.isBlank {
+		if v.IsBlank() {
 			return errBlankValue
 		}
 		return nil
@@ -784,7 +738,7 @@ func BoolRequired() CheckFunc {
 // Checks that a decimal is not blank.
 func DecRequired() CheckFunc {
 	return func(v Field) error {
-		if v.isBlank {
+		if v.IsBlank() {
 			return errBlankValue
 		}
 		return nil
@@ -793,10 +747,10 @@ func DecRequired() CheckFunc {
 
 // Checks that a decimal is less than n.
 func DecLt(n string) CheckFunc {
-	nn, err := parseDecimal(n)
+	nn := parseDecimal(n)
 
 	return func(v Field) error {
-		if err != nil {
+		if nn.Err() != nil {
 			return errInvalidConfig
 		}
 		// Check if v >= nn.
@@ -809,10 +763,10 @@ func DecLt(n string) CheckFunc {
 
 // Checks that a decimal is less than or equal to n.
 func DecLte(n string) CheckFunc {
-	nn, err := parseDecimal(n)
+	nn := parseDecimal(n)
 
 	return func(v Field) error {
-		if err != nil {
+		if nn.Err() != nil {
 			return errInvalidConfig
 		}
 		// Check if v > nn.
@@ -825,10 +779,10 @@ func DecLte(n string) CheckFunc {
 
 // Checks that a decimal is more than n.
 func DecGt(n string) CheckFunc {
-	nn, err := parseDecimal(n)
+	nn := parseDecimal(n)
 
 	return func(v Field) error {
-		if err != nil {
+		if nn.Err() != nil {
 			return errInvalidConfig
 		}
 		// Check if v <= nn.
@@ -841,10 +795,10 @@ func DecGt(n string) CheckFunc {
 
 // Checks that a decimal is greater than or equal to n.
 func DecGte(n string) CheckFunc {
-	nn, err := parseDecimal(n)
+	nn := parseDecimal(n)
 
 	return func(v Field) error {
-		if err != nil {
+		if nn.Err() != nil {
 			return errInvalidConfig
 		}
 		// Check if v < nn.
@@ -857,11 +811,11 @@ func DecGte(n string) CheckFunc {
 
 // Checks that a decimal is between n and m.
 func DecBtw(n, m string) CheckFunc {
-	nn, nerr := parseDecimal(n)
-	mm, merr := parseDecimal(m)
+	nn := parseDecimal(n)
+	mm := parseDecimal(m)
 
 	return func(v Field) error {
-		if (nerr != nil) || (merr != nil) {
+		if (nn.Err() != nil) || (mm.Err() != nil) {
 			return errInvalidConfig
 		}
 
@@ -892,7 +846,7 @@ func DecBtw(n, m string) CheckFunc {
 // Checks that a date is not blank.
 func DtRequired() CheckFunc {
 	return func(v Field) error {
-		if v.isBlank {
+		if v.IsBlank() {
 			return errBlankValue
 		}
 		return nil
@@ -901,10 +855,10 @@ func DtRequired() CheckFunc {
 
 // Checks that a date is before n (yyyy-mm-dd).
 func DtBefore(n string) CheckFunc {
-	nn, err := parseDate(n)
+	nn := parseDate(n)
 
 	return func(v Field) error {
-		if err != nil {
+		if nn.Err() != nil {
 			return errInvalidConfig
 		}
 		if !v.Date.Before(nn.Date) {
@@ -916,10 +870,10 @@ func DtBefore(n string) CheckFunc {
 
 // Checks that a date is after n (yyyy-mm-dd).
 func DtAfter(n string) CheckFunc {
-	nn, err := parseDate(n)
+	nn := parseDate(n)
 
 	return func(v Field) error {
-		if err != nil {
+		if nn.Err() != nil {
 			return errInvalidConfig
 		}
 		if !v.Date.After(nn.Date) {
