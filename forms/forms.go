@@ -317,32 +317,6 @@ func (f *Form) isProcessed(name string) bool {
 // ------------------------------------------------------------------
 //
 //
-// Type: Field
-//
-//
-// ------------------------------------------------------------------
-
-// Field represents a parsed value.
-type Field struct {
-	String  string
-	Integer int
-	Float   float64
-	Bool    bool
-	Decimal big.Rat
-	Date    time.Time
-
-	isBlank bool
-}
-
-// ParseFunc is a function which parses a value into the desired type, as a Field.
-type ParseFunc func(string) (Field, error)
-
-// CheckFunc is a function which validates a Field.
-type CheckFunc func(Field) error
-
-// ------------------------------------------------------------------
-//
-//
 // Type: ParseError
 //
 //
@@ -397,7 +371,33 @@ var (
 // ------------------------------------------------------------------
 //
 //
-// Parse Functions
+// Type: Field
+//
+//
+// ------------------------------------------------------------------
+
+// Field represents a parsed value.
+type Field struct {
+	String  string
+	Integer int
+	Float   float64
+	Bool    bool
+	Decimal big.Rat
+	Date    time.Time
+
+	isBlank bool
+}
+
+// ParseFunc is a function which parses a value into the desired type, as a Field.
+type ParseFunc func(string) (Field, error)
+
+// CheckFunc is a function which validates a Field.
+type CheckFunc func(Field) error
+
+// ------------------------------------------------------------------
+//
+//
+// Field Parse Functions
 //
 //
 // ------------------------------------------------------------------
