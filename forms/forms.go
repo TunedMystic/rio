@@ -29,7 +29,7 @@ import (
 // Validation functions can also be provided, which ensures that
 // the parsed type is properly vetted before being retrieved.
 type Form struct {
-	fields      map[string]*Field
+	fields      map[string]Field
 	extraerrors []error
 }
 
@@ -95,11 +95,8 @@ func (f *Form) CleanExtra(cond bool, err error) {
 // the field is determined to be valid.
 // .
 func (f *Form) cleanField(name string, field Field, checks ...CheckFunc) {
-	if ok := f.addField(name, &field); !ok {
-		return
-	}
-
 	if field.Err() != nil {
+		f.addField(name, field)
 		return
 	}
 
@@ -107,23 +104,22 @@ func (f *Form) cleanField(name string, field Field, checks ...CheckFunc) {
 	for i := range checks {
 		if err := checks[i](field); err != nil {
 			field.addError(err)
-			return
+			break
 		}
 	}
+
+	f.addField(name, field)
 }
 
-// addField adds the field into the fields map. It returns a bool
-// to indicate if it was successfully added to the map.
-func (f *Form) addField(name string, val *Field) bool {
+// addField adds the field into the fields map.
+func (f *Form) addField(name string, val Field) {
 	if f.fields == nil {
-		f.fields = make(map[string]*Field)
+		f.fields = make(map[string]Field)
 	}
 
 	if _, exists := f.fields[name]; !exists {
 		f.fields[name] = val
-		return true
 	}
-	return false
 }
 
 // ------------------------------------------------------------------
@@ -220,7 +216,7 @@ func (f *Form) Field(name string) (Field, bool) {
 		return Field{}, false
 	}
 	field, ok := f.fields[name]
-	return *field, ok
+	return field, ok
 }
 
 // MustField returns the desired Field and panics if it does not exist.
