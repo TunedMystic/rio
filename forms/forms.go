@@ -163,6 +163,46 @@ func (f *Form) CleanedDecimal(name string) big.Rat {
 // ------------------------------------------------------------------
 //
 //
+// Form Getters for Fields and Errors
+//
+//
+// ------------------------------------------------------------------
+
+// Field returns the Field mapped to the given name.
+func (f *Form) Field(name string) (Field, bool) {
+	if f.fields == nil {
+		return Field{}, false
+	}
+	field, ok := f.fields[name]
+	return field, ok
+}
+
+// MustField returns the desired Field and panics if it does not exist.
+func (f *Form) MustField(name string) Field {
+	field, ok := f.Field(name)
+	if !ok {
+		panic(fmt.Sprintf("failed to get field %s", name))
+	}
+	return field
+}
+
+// Names returns the field names.
+func (f *Form) Names() []string {
+	names := make([]string, 0, len(f.fields))
+	for name := range f.fields {
+		names = append(names, name)
+	}
+	return names
+}
+
+// ExtraErrors returns the extra errors slice.
+func (f *Form) ExtraErrors() []error {
+	return f.extraerrors
+}
+
+// ------------------------------------------------------------------
+//
+//
 // Form Introspection
 //
 //
@@ -191,46 +231,6 @@ func (f *Form) HasError(target any) bool {
 		}
 	}
 	return false
-}
-
-// ------------------------------------------------------------------
-//
-//
-// Form Getters for Fields and Errors
-//
-//
-// ------------------------------------------------------------------
-
-// Names returns the field names.
-func (f *Form) Names() []string {
-	names := make([]string, 0, len(f.fields))
-	for name := range f.fields {
-		names = append(names, name)
-	}
-	return names
-}
-
-// Field returns the Field mapped to the given name.
-func (f *Form) Field(name string) (Field, bool) {
-	if f.fields == nil {
-		return Field{}, false
-	}
-	field, ok := f.fields[name]
-	return field, ok
-}
-
-// MustField returns the desired Field and panics if it does not exist.
-func (f *Form) MustField(name string) Field {
-	field, ok := f.Field(name)
-	if !ok {
-		panic(fmt.Sprintf("failed to get field %s", name))
-	}
-	return field
-}
-
-// ExtraErrors returns the extra errors slice.
-func (f *Form) ExtraErrors() []error {
-	return f.extraerrors
 }
 
 // ------------------------------------------------------------------
