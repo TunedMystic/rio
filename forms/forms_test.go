@@ -729,4 +729,87 @@ func TestStringCheckFuncs(t *testing.T) {
 		err3 := StrGte(5)(field3)
 		assert.Equal(t, err3.Error(), "must be more than or equal to 5 characters")
 	})
+
+	t.Run("StrBtw", func(t *testing.T) {
+		// ok
+		field1 := parseString("abcdef")
+		err1 := StrBtw(5, 8)(field1)
+		assert.Equal(t, err1, nil)
+
+		// ok
+		field2 := parseString("abcde")
+		err2 := StrBtw(5, 8)(field2)
+		assert.Equal(t, err2, nil)
+
+		// ok
+		field3 := parseString("abcdefgh")
+		err3 := StrBtw(5, 8)(field3)
+		assert.Equal(t, err3, nil)
+
+		// error
+		field4 := parseString("abcd")
+		err4 := StrBtw(5, 8)(field4)
+		assert.Equal(t, err4.Error(), "must be between 5 and 8 characters")
+
+		// error
+		field5 := parseString("abcdefghi")
+		err5 := StrBtw(5, 8)(field5)
+		assert.Equal(t, err5.Error(), "must be between 5 and 8 characters")
+
+		// error
+		field6 := parseString("abcd")
+		err6 := StrBtw(5, 5)(field6)
+		assert.Equal(t, err6.Error(), "invalid validation config")
+
+		// error
+		field7 := parseString("abcd")
+		err7 := StrBtw(8, 5)(field7)
+		assert.Equal(t, err7.Error(), "invalid validation config")
+	})
+
+	t.Run("StrIn", func(t *testing.T) {
+		// ok
+		field1 := parseString("cat")
+		err1 := StrIn([]string{"cat", "dog", "rabbit", "panda"})(field1)
+		assert.Equal(t, err1, nil)
+
+		// error
+		field2 := parseString("bird")
+		err2 := StrIn([]string{"cat", "dog", "rabbit", "panda"})(field2)
+		assert.Equal(t, err2.Error(), "must be a valid choice")
+	})
+
+	t.Run("StrEmail", func(t *testing.T) {
+		// ok
+		field1 := parseString("alice@example.com")
+		err1 := StrEmail()(field1)
+		assert.Equal(t, err1, nil)
+
+		// error
+		field2 := parseString("alice@example")
+		err2 := StrEmail()(field2)
+		assert.Equal(t, err2.Error(), "must be a valid email")
+	})
+
+	t.Run("StrUrl", func(t *testing.T) {
+		// ok
+		field1 := parseString("https://example.com")
+		err1 := StrUrl()(field1)
+		assert.Equal(t, err1, nil)
+
+		// ok
+		field2 := parseString("http://example.com")
+		err2 := StrUrl()(field2)
+		assert.Equal(t, err2, nil)
+
+		// ok
+		field3 := parseString("example.com")
+		err3 := StrUrl()(field3)
+		assert.Equal(t, err3, nil)
+
+		// error
+		field4 := parseString("example")
+		err4 := StrUrl()(field4)
+		assert.Equal(t, err4.Error(), "must be a valid url")
+	})
 }
