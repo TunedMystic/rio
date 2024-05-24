@@ -484,7 +484,7 @@ func StrGte(n int) CheckFunc {
 	err := fmt.Errorf("must be more than or equal to %d characters", n)
 
 	return func(v Field) error {
-		if utf8.RuneCountInString(v.String) <= n {
+		if utf8.RuneCountInString(v.String) < n {
 			return err
 		}
 		return nil
@@ -711,7 +711,7 @@ func FltIn(choices []float64) CheckFunc {
 // Checks that a bool is not blank.
 func BoolRequired() CheckFunc {
 	return func(v Field) error {
-		if v.Bool {
+		if v.IsBlank() {
 			return errBlankValue
 		}
 		return nil
