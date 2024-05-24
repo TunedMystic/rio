@@ -2,6 +2,7 @@ package forms
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -294,6 +295,93 @@ func TestForm(t *testing.T) {
 		// Act / Assert
 		assert.Panic(t, func() { form.MustField("fieldB") })
 	})
+
+	t.Run("IsValid", func(t *testing.T) {
+		// Arrange
+		form := New()
+		form.CleanString("stringField", "test", StrRequired())
+		form.CleanInteger("integerField", "1", IntRequired())
+		form.CleanFloat("floatField", "1.23", FltRequired())
+		form.CleanBool("boolField", "true", BoolRequired())
+		form.CleanDate("dateField", "2020-07-23", DtRequired())
+		form.CleanDecimal("decimalField", "11.34", DecRequired())
+
+		// Act / Assert
+		assert.Equal(t, form.IsValid(), true)
+		for _, name := range form.Names() {
+			fmt.Println(name, form.MustField(name).Err())
+		}
+	})
+
+	t.Run("IsValid-false-fielderror", func(t *testing.T) {
+		// Arrange
+		form := New()
+		form.CleanString("stringField", "test", StrRequired())
+		form.CleanInteger("integerField", "1", IntRequired())
+		form.CleanFloat("floatField", "", FltRequired()) // will cause a field error
+		form.CleanBool("boolField", "true", BoolRequired())
+		form.CleanDate("dateField", "2020-07-23", DtRequired())
+		form.CleanDecimal("decimalField", "11.34", DecRequired())
+
+		// Act / Assert
+		assert.Equal(t, form.IsValid(), false)
+		assert.Equal(t, len(form.extraerrors), 0)
+	})
+
+	t.Run("IsValid-false-non-fielderror", func(t *testing.T) {
+		// Arrange
+		form := New()
+		form.CleanString("stringField", "test", StrRequired())
+		form.CleanInteger("integerField", "1", IntRequired())
+		form.CleanFloat("floatField", "1.23", FltRequired())
+		form.CleanBool("boolField", "true", BoolRequired())
+		form.CleanDate("dateField", "2020-07-23", DtRequired())
+		form.CleanDecimal("decimalField", "11.34", DecRequired())
+		form.CleanExtra(true, errors.New("boom")) // will cause a non-field error
+
+		// Act / Assert
+		assert.Equal(t, form.IsValid(), false)
+		assert.Equal(t, len(form.extraerrors), 1)
+	})
+
+	t.Run("HasError-no-error", func(t *testing.T) {
+		// Arrange
+		form := New()
+		form.CleanFloat("floatField", "1.23")
+
+		// Act / Assert
+		var pErr ParseError
+		assert.Equal(t, form.HasError(&pErr), false)
+	})
+
+	t.Run("HasError-fielderror", func(t *testing.T) {
+		// Arrange
+		form := New()
+		form.CleanFloat("floatField", "x.23")
+
+		// Act / Assert
+		var pErr ParseError
+		assert.Equal(t, form.HasError(&pErr), true)
+	})
+
+	t.Run("HasError-non-fielderror", func(t *testing.T) {
+		// Arrange
+		form := New()
+		form.CleanFloat("floatField", "1.23")
+		form.CleanExtra(true, TestError{Msg: "boom"})
+
+		// Act / Assert
+		var tErr TestError
+		assert.Equal(t, form.HasError(&tErr), true)
+	})
+}
+
+type TestError struct {
+	Msg string
+}
+
+func (t TestError) Error() string {
+	return t.Msg
 }
 
 // ------------------------------------------------------------------
@@ -577,27 +665,68 @@ func TestParseField(t *testing.T) {
 // ------------------------------------------------------------------
 
 func TestStringCheckFuncs(t *testing.T) {
-	t.Run("StrRequired-ok", func(t *testing.T) {
-		field := parseString("test")
-		err := StrRequired()(field)
-		assert.Equal(t, err, nil)
+	t.Run("StrRequired", func(t *testing.T) {
+		// ok
+		field1 := parseString("test")
+		err1 := StrRequired()(field1)
+		assert.Equal(t, err1, nil)
+
+		// error
+		field2 := parseString("")
+		err2 := StrRequired()(field2)
+		assert.Equal(t, err2, errBlankValue)
 	})
 
-	t.Run("StrRequired-error", func(t *testing.T) {
-		field := parseString("")
-		err := StrRequired()(field)
-		assert.Equal(t, err, errBlankValue)
+	t.Run("StrLt", func(t *testing.T) {
+		// ok
+		field1 := parseString("abcd")
+		err1 := StrLt(5)(field1)
+		assert.Equal(t, err1, nil)
+
+		// error
+		field2 := parseString("abcde")
+		err2 := StrLt(5)(field2)
+		assert.Equal(t, err2.Error(), "must be less than 5 characters")
 	})
 
-	t.Run("StrLt-ok", func(t *testing.T) {
-		field := parseString("abcd-abcd")
-		err := StrLt(10)(field)
-		assert.Equal(t, err, nil)
+	t.Run("StrLte", func(t *testing.T) {
+		// ok
+		field1 := parseString("abcde")
+		err1 := StrLte(5)(field1)
+		assert.Equal(t, err1, nil)
+
+		// error
+		field2 := parseString("abcdef")
+		err2 := StrLte(5)(field2)
+		assert.Equal(t, err2.Error(), "must be less than or equal to 5 characters")
 	})
 
-	t.Run("StrLt-error", func(t *testing.T) {
-		field := parseString("abcd-abcd")
-		err := StrLt(5)(field)
-		assert.Equal(t, err.Error(), "must be less than 5 characters")
+	t.Run("StrGt", func(t *testing.T) {
+		// ok
+		field1 := parseString("abcdef")
+		err1 := StrGt(5)(field1)
+		assert.Equal(t, err1, nil)
+
+		// error
+		field2 := parseString("abcde")
+		err2 := StrGt(5)(field2)
+		assert.Equal(t, err2.Error(), "must be more than 5 characters")
+	})
+
+	t.Run("StrGte", func(t *testing.T) {
+		// ok
+		field1 := parseString("abcdef")
+		err1 := StrGte(5)(field1)
+		assert.Equal(t, err1, nil)
+
+		// ok
+		field2 := parseString("abcde")
+		err2 := StrGte(5)(field2)
+		assert.Equal(t, err2, nil)
+
+		// error
+		field3 := parseString("abcd")
+		err3 := StrGte(5)(field3)
+		assert.Equal(t, err3.Error(), "must be more than or equal to 5 characters")
 	})
 }
