@@ -200,6 +200,30 @@ func (f *Form) ExtraErrors() []error {
 	return f.extraerrors
 }
 
+// Errors returns a slice of all field and non-field errors.
+// Field error messages are prepared as "{field name} - {error message}".
+// Non-Field errors messages are collected as is.
+func (f *Form) Errors() []error {
+	var errs []error
+
+	// Collect field errors
+	for _, name := range f.Names() {
+		field := f.MustField(name)
+
+		if err := field.Err(); err != nil {
+			if errs == nil {
+				errs = make([]error, 0, len(f.Names()))
+			}
+			errs = append(errs, fmt.Errorf("%s %w", name, err))
+		}
+	}
+
+	// Collect non-field errors
+	errs = append(errs, f.ExtraErrors()...)
+
+	return errs
+}
+
 // ------------------------------------------------------------------
 //
 //
