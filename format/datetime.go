@@ -48,6 +48,11 @@ func Today() time.Time {
 	return TrimTime(time.Now().UTC())
 }
 
+// CurrentYear returns the current year as an int.
+func CurrentYear() int {
+	return time.Now().UTC().Year()
+}
+
 // TrimTime erases the hh:mm:ss:ns of the given time.Time.
 func TrimTime(d time.Time) time.Time {
 	return time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, d.Location())
