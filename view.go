@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+
+	"github.com/tunedmystic/rio/format"
 )
 
 // ------------------------------------------------------------------
@@ -113,6 +115,7 @@ func constructView(templatesFS fs.FS, opts ...ViewOpt) (*View, error) {
 
 	// Set the default template functions.
 	v.funcMap["safe"] = safeHtml
+	v.funcMap["title"] = format.Title
 
 	// Configure the View with with ViewOpt funcs, if any.
 	for i := range opts {
