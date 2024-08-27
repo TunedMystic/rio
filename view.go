@@ -116,6 +116,7 @@ func constructView(templatesFS fs.FS, opts ...ViewOpt) (*View, error) {
 	// Set the default template functions.
 	v.funcMap["safe"] = safeHtml
 	v.funcMap["title"] = format.Title
+	v.funcMap["titlefirst"] = format.TitleFirst
 
 	// Configure the View with with ViewOpt funcs, if any.
 	for i := range opts {
