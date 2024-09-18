@@ -54,6 +54,11 @@ func (s *Server) Use(middleware ...func(http.Handler) http.Handler) {
 	s.middleware = append(s.middleware, middleware...)
 }
 
+// Clear removes all registered middleware from the Server.
+func (s *Server) Clear() {
+	s.middleware = nil
+}
+
 // Handler returns the Server as an http.Handler.
 //
 // It wraps the ServeMux with the middleware handlers, and returns
