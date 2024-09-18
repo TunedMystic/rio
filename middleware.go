@@ -27,7 +27,7 @@ func (w *logResponseWriter) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
 }
 
-// Logger is a middleware which logs the http request and response status.
+// LogRequest is a middleware which logs the http request and response status.
 func LogRequest(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ww := &logResponseWriter{
@@ -50,6 +50,37 @@ func LogRequest(next http.Handler) http.Handler {
 		next.ServeHTTP(ww, r)
 	}
 	return http.HandlerFunc(fn)
+}
+
+// LogRequestExclude is a middleware which logs the http request and response status
+// if the request url does not match the given path.
+func LogRequestExclude(excludePath string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			ww := &logResponseWriter{
+				ResponseWriter: w,
+				status:         http.StatusOK,
+			}
+
+			// If the url matches the excludePath, the request will not be logged.
+			// If the url does not match the excludePath, the request will be logged.
+			if r.URL.Path != excludePath {
+				defer func(start time.Time) {
+					LogInfo(
+						"request",
+						slog.Int("status", ww.status),
+						slog.String("method", r.Method),
+						slog.String("url", r.URL.RequestURI()),
+						slog.Duration("time", time.Since(start)),
+					)
+				}(time.Now())
+			}
+
+			// Call the next handler
+			next.ServeHTTP(ww, r)
+		}
+		return http.HandlerFunc(fn)
+	}
 }
 
 // ------------------------------------------------------------------
