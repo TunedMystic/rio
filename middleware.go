@@ -91,7 +91,7 @@ func RecoverPanic(next http.Handler) http.Handler {
 func SecureHeaders(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Referrer-Policy", "origin-when-cross-origin")
-		w.Header().Set("Strict-Transport-Security", "max-age=5184000; includeSubDomains")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "deny")
 		w.Header().Set("X-XSS-Protection", "0")
