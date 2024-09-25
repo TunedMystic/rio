@@ -29,11 +29,15 @@ type Server struct {
 // The underlying mux is the standard http.ServeMux.
 // The LogRequest, RecoverPanic and SecureHeaders middleware are
 // automatically registered on construction.
-func NewServer() *Server {
+func NewServer(middleware ...func(http.Handler) http.Handler) *Server {
 	s := &Server{
 		mux: http.NewServeMux(),
 	}
-	s.Use(LogRequest, RecoverPanic, SecureHeaders)
+	if middleware == nil {
+		s.Use(LogRequest, RecoverPanic, SecureHeaders)
+	} else {
+		s.Use(middleware...)
+	}
 	return s
 }
 
@@ -52,11 +56,6 @@ func (s *Server) HandleFunc(pattern string, handler func(http.ResponseWriter, *h
 // Use registers one or more handlers as middleware for the Server.
 func (s *Server) Use(middleware ...func(http.Handler) http.Handler) {
 	s.middleware = append(s.middleware, middleware...)
-}
-
-// Clear removes all registered middleware from the Server.
-func (s *Server) Clear() {
-	s.middleware = nil
 }
 
 // Handler returns the Server as an http.Handler.
@@ -81,6 +80,24 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) Serve(addr string) error {
 	LogInfo("starting server", slog.String("port", addr))
 	return Serve(addr, s.Handler())
+}
+
+// ------------------------------------------------------------------
+//
+//
+// Type: RouteMap
+//
+//
+// ------------------------------------------------------------------
+
+// RouteMap defines a mapping of routes to http handlers.
+type RouteMap map[string]http.Handler
+
+// RegisterRoutes registers all routes of the map to the Server.
+func (rm RouteMap) RegisterRoutes(s *Server) {
+	for route := range rm {
+		s.Handle(route, rm[route])
+	}
 }
 
 // ------------------------------------------------------------------
