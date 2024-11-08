@@ -33,6 +33,11 @@ func DateNatural(d time.Time) string {
 	return d.Format("January 2, 2006")
 }
 
+// DateDayNatural formats a time.Time to a string like "Monday, January 2, 2006".
+func DateDayNatural(d time.Time) string {
+	return d.Format("Monday, January 2, 2006")
+}
+
 // DateSlug formats a time.Time to a string like "january-2-2006".
 func DateSlug(d time.Time) string {
 	return strings.ToLower(d.Format("January-2-2006"))
