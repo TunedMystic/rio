@@ -295,6 +295,8 @@ var (
 
 	errInvalidChoice = errors.New("must be a valid choice")
 	errInvalidConfig = errors.New("invalid validation config")
+	errInvalidEmail  = errors.New("must be a valid email")
+	errInvalidUrl    = errors.New("must be a valid url")
 	errBlankValue    = errors.New("cannot be blank")
 
 	errLessThan           = "must be less than %v"
@@ -541,9 +543,7 @@ func StrIn(choices []string) CheckFunc {
 }
 
 // Checks that a string matches the given regex.
-func StrMatches(rx *regexp.Regexp, errMsg string) CheckFunc {
-	err := fmt.Errorf(errMsg)
-
+func StrMatches(rx *regexp.Regexp, err error) CheckFunc {
 	return func(v Field) error {
 		if !rx.MatchString(v.String) {
 			return err
@@ -554,12 +554,12 @@ func StrMatches(rx *regexp.Regexp, errMsg string) CheckFunc {
 
 // Checks that a string is an email.
 func StrEmail() CheckFunc {
-	return StrMatches(emailRegex, "must be a valid email")
+	return StrMatches(emailRegex, errInvalidEmail)
 }
 
 // Checks that a string is a URL.
 func StrUrl() CheckFunc {
-	return StrMatches(urlRegex, "must be a valid url")
+	return StrMatches(urlRegex, errInvalidUrl)
 }
 
 // ------------------------------------------------------------------
