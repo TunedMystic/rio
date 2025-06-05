@@ -1,8 +1,10 @@
 package dom
 
 import (
+	"fmt"
 	"html"
 	"io"
+	"net/http"
 	"strings"
 )
 
@@ -23,10 +25,11 @@ type htmlElement struct {
 	Children []Node
 }
 
+var _ Node = (*htmlElement)(nil)
+var _ fmt.Stringer = (*htmlElement)(nil)
+
 func (e htmlElement) Render(w io.Writer) error {
-	// Render opening tag
-	w.Write([]byte("<"))
-	w.Write([]byte(e.Name))
+	w.Write([]byte("<" + e.Name))
 
 	// Render attributes
 	for _, c := range e.Children {
@@ -53,11 +56,7 @@ func (e htmlElement) Render(w io.Writer) error {
 		}
 	}
 
-	// Render closing tag
-	w.Write([]byte("</"))
-	w.Write([]byte(e.Name))
-	w.Write([]byte(">"))
-
+	w.Write([]byte("</" + e.Name + ">"))
 	return nil
 }
 
@@ -79,15 +78,18 @@ type htmlAttr struct {
 	Value string
 }
 
-func (a htmlAttr) Render(w io.Writer) error {
-	w.Write([]byte(" "))
-	w.Write([]byte(a.Name))
+var _ Node = (*htmlAttr)(nil)
+var _ fmt.Stringer = (*htmlAttr)(nil)
 
-	if a.Value != "" {
-		w.Write([]byte(`="`))
-		w.Write([]byte(html.EscapeString(a.Value)))
-		w.Write([]byte(`"`))
+func (a htmlAttr) Render(w io.Writer) error {
+	w.Write([]byte(" " + a.Name))
+
+	// Boolean attributes have no value.
+	if a.Value == "" {
+		return nil
 	}
+
+	w.Write([]byte(`="` + html.EscapeString(a.Value) + `"`))
 	return nil
 }
 
@@ -108,6 +110,9 @@ type htmlString struct {
 	Value string
 	Raw   bool
 }
+
+var _ Node = (*htmlString)(nil)
+var _ fmt.Stringer = (*htmlString)(nil)
 
 func (s htmlString) Render(w io.Writer) error {
 	if s.Raw {
@@ -133,11 +138,12 @@ func (s htmlString) String() string {
 // Group is a convenience type for grouping multiple Nodes together.
 type Group []Node
 
+var _ Node = (*Group)(nil)
+var _ fmt.Stringer = (*Group)(nil)
+
 func (g Group) Render(w io.Writer) error {
 	for _, node := range g {
-		if err := node.Render(w); err != nil {
-			return err
-		}
+		node.Render(w)
 	}
 	return nil
 }
@@ -175,7 +181,7 @@ func If(condition bool, a Node) Node {
 	if condition {
 		return a
 	}
-	return nil
+	return htmlString{Value: ""}
 }
 
 // Ifelse is a utility function that returns Node a if the condition is true,
@@ -185,6 +191,34 @@ func Ifelse(condition bool, a, b Node) Node {
 		return a
 	}
 	return b
+}
+
+// ------------------------------------------------------------------
+//
+//
+//
+// ------------------------------------------------------------------
+
+// HandlerFunc is a custom http handler signature which accepts
+// an http.ResponseWriter, *http.Request and returns a Node.
+// HandlerFuncs must be converted into an http.Handler with the Handler middleware.
+type HandlerFunc func(http.ResponseWriter, *http.Request) Node
+
+// Handler is a middleware which converts a dom.HandlerFunc to an http.Handler.
+// It centralizes the error handling and rendering of the Node.
+func Handler(next HandlerFunc) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		node := next(w, r)
+		if node == nil {
+			status := http.StatusInternalServerError
+			http.Error(w, http.StatusText(status), status)
+		} else if err := node.Render(w); err != nil {
+			status := http.StatusInternalServerError
+			http.Error(w, http.StatusText(status), status)
+		}
+		return
+	}
+	return http.HandlerFunc(fn)
 }
 
 // ------------------------------------------------------------------
