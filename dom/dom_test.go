@@ -483,3 +483,112 @@ func BenchmarkLargeHTMLDocument(b *testing.B) {
 		_ = doc.Render(&sb)
 	}
 }
+
+func BenchmarkElementCreation(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = Div(
+			Class("container"),
+			Id("main-content"),
+			P(Text("Hello, World!")),
+			Span(Text("Another element")),
+		)
+	}
+}
+
+func BenchmarkAttributeCreation(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = Class("my-class")
+		_ = Id("my-id")
+		_ = Href("/some/url")
+		_ = Src("image.png")
+	}
+}
+
+func BenchmarkRenderDeeplyNestedElements(b *testing.B) {
+	b.ReportAllocs()
+	const depth = 100
+	var node Node = Div()
+	for j := 0; j < depth; j++ {
+		// Create a new Div that wraps the previous node
+		node = Div(Class("inner"), node)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = node.Render(io.Discard)
+	}
+}
+
+func BenchmarkRenderElementWithManyAttributes(b *testing.B) {
+	b.ReportAllocs()
+	const numAttrs = 100
+	attrs := make([]Node, numAttrs)
+	for j := 0; j < numAttrs; j++ {
+		attrs[j] = CreateAttr(fmt.Sprintf("data-attr%d", j), "value")
+	}
+	node := Div(attrs...)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = node.Render(io.Discard)
+	}
+}
+
+func BenchmarkRenderHtmlStringEscaped(b *testing.B) {
+	b.ReportAllocs()
+	// A string that contains characters requiring HTML escaping
+	longString := strings.Repeat("Text with <html> tags & special chars like < > & \" ' ", 50)
+	node := Text(longString)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = node.Render(io.Discard)
+	}
+}
+
+func BenchmarkRenderHtmlStringRaw(b *testing.B) {
+	b.ReportAllocs()
+	longString := strings.Repeat("Text with <html> tags & special chars like < > & \" ' ", 50)
+	node := Raw(longString)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = node.Render(io.Discard)
+	}
+}
+
+func BenchmarkMapAndRender(b *testing.B) {
+	b.ReportAllocs()
+	const numItems = 500
+	items := make([]string, numItems)
+	for j := 0; j < numItems; j++ {
+		items[j] = fmt.Sprintf("item-%d", j)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Map items to Nodes
+		groupNode := Map(items, func(s string) Node {
+			return Li(Text(s))
+		})
+		// Render the resulting group
+		_ = groupNode.Render(io.Discard)
+	}
+}
+
+func BenchmarkGroupRenderLarge(b *testing.B) {
+	b.ReportAllocs()
+	const numNodes = 1000
+	nodes := make([]Node, numNodes)
+	for j := 0; j < numNodes; j++ {
+		nodes[j] = Span(Text(fmt.Sprintf("span-node-%d", j)))
+	}
+	group := Group(nodes)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = group.Render(io.Discard)
+	}
+}
