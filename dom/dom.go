@@ -8,6 +8,16 @@ import (
 	"strings"
 )
 
+// Common byte slices for HTML rendering to reduce allocations.
+var (
+	bLt          = []byte("<")
+	bGt          = []byte(">")
+	bLtSlash     = []byte("</")
+	bSpace       = []byte(" ")
+	bEqualsQuote = []byte(`="`)
+	bQuote       = []byte(`"`)
+)
+
 type Node interface {
 	Render(w io.Writer) error
 }
@@ -18,7 +28,7 @@ type Node interface {
 //
 // ------------------------------------------------------------------
 
-// htmlElement represents an HTML element
+// htmlElement represents an HTML element.
 type htmlElement struct {
 	Name     string
 	IsVoid   bool
@@ -29,7 +39,13 @@ var _ Node = (*htmlElement)(nil)
 var _ fmt.Stringer = (*htmlElement)(nil)
 
 func (e htmlElement) Render(w io.Writer) error {
-	w.Write([]byte("<" + e.Name))
+	var err error
+	if _, err = w.Write(bLt); err != nil {
+		return err
+	}
+	if _, err = io.WriteString(w, e.Name); err != nil {
+		return err
+	}
 
 	// Render attributes
 	for _, c := range e.Children {
@@ -40,7 +56,9 @@ func (e htmlElement) Render(w io.Writer) error {
 		}
 	}
 
-	w.Write([]byte(">"))
+	if _, err = w.Write(bGt); err != nil {
+		return err
+	}
 
 	// Void elements have no children or closing tags.
 	if e.IsVoid {
@@ -56,7 +74,15 @@ func (e htmlElement) Render(w io.Writer) error {
 		}
 	}
 
-	w.Write([]byte("</" + e.Name + ">"))
+	if _, err = w.Write(bLtSlash); err != nil {
+		return err
+	}
+	if _, err = io.WriteString(w, e.Name); err != nil {
+		return err
+	}
+	if _, err = w.Write(bGt); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -72,7 +98,7 @@ func (e htmlElement) String() string {
 //
 // ------------------------------------------------------------------
 
-// htmlAttr represents an HTML attribute
+// htmlAttr represents an HTML attribute.
 type htmlAttr struct {
 	Name  string
 	Value string
@@ -82,14 +108,28 @@ var _ Node = (*htmlAttr)(nil)
 var _ fmt.Stringer = (*htmlAttr)(nil)
 
 func (a htmlAttr) Render(w io.Writer) error {
-	w.Write([]byte(" " + a.Name))
+	var err error
+	if _, err = w.Write(bSpace); err != nil {
+		return err
+	}
+	if _, err = io.WriteString(w, a.Name); err != nil {
+		return err
+	}
 
 	// Boolean attributes have no value.
 	if a.Value == "" {
 		return nil
 	}
 
-	w.Write([]byte(`="` + html.EscapeString(a.Value) + `"`))
+	if _, err = w.Write(bEqualsQuote); err != nil {
+		return err
+	}
+	if _, err = io.WriteString(w, html.EscapeString(a.Value)); err != nil {
+		return err
+	}
+	if _, err = w.Write(bQuote); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -105,7 +145,7 @@ func (a htmlAttr) String() string {
 //
 // ------------------------------------------------------------------
 
-// htmlString represents a piece of HTML content
+// htmlString represents a piece of HTML content.
 type htmlString struct {
 	Value string
 	Raw   bool
@@ -116,11 +156,12 @@ var _ fmt.Stringer = (*htmlString)(nil)
 
 func (s htmlString) Render(w io.Writer) error {
 	if s.Raw {
-		w.Write([]byte(s.Value))
+		_, err := io.WriteString(w, s.Value)
+		return err
 	} else {
-		w.Write([]byte(html.EscapeString(s.Value)))
+		_, err := io.WriteString(w, html.EscapeString(s.Value))
+		return err
 	}
-	return nil
 }
 
 func (s htmlString) String() string {
@@ -143,7 +184,9 @@ var _ fmt.Stringer = (*Group)(nil)
 
 func (g Group) Render(w io.Writer) error {
 	for _, node := range g {
-		node.Render(w)
+		if err := node.Render(w); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -175,13 +218,15 @@ func Map[T any](items []T, fn func(T) Node) Group {
 //
 // ------------------------------------------------------------------
 
+var emptyNode = htmlString{Value: ""}
+
 // If is a utility function that returns a Node if the condition is true,
-// otherwise returns nil.
+// otherwise returns a shared empty node.
 func If(condition bool, a Node) Node {
 	if condition {
 		return a
 	}
-	return htmlString{Value: ""}
+	return emptyNode
 }
 
 // Ifelse is a utility function that returns Node a if the condition is true,
@@ -216,7 +261,6 @@ func Handler(next HandlerFunc) http.Handler {
 			status := http.StatusInternalServerError
 			http.Error(w, http.StatusText(status), status)
 		}
-		return
 	}
 	return http.HandlerFunc(fn)
 }
