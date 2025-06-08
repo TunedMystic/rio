@@ -56,7 +56,7 @@ func (e htmlElement) Render(w io.Writer) error {
 	// Render attributes
 	for _, c := range e.Children {
 		if attr, ok := c.(HtmlAttributer); ok {
-			if err := attr.RenderAttribute(w); err != nil {
+			if err = attr.RenderAttribute(w); err != nil {
 				return err
 			}
 		}
@@ -70,11 +70,10 @@ func (e htmlElement) Render(w io.Writer) error {
 	if e.IsVoid {
 		return nil
 	}
-
 	// Render children
 	for _, c := range e.Children {
 		if _, ok := c.(HtmlAttributer); !ok {
-			if err := c.Render(w); err != nil {
+			if err = c.Render(w); err != nil {
 				return err
 			}
 		}
@@ -104,6 +103,10 @@ func (e htmlElement) String() string {
 //
 // ------------------------------------------------------------------
 
+type HtmlAttributer interface {
+	RenderAttribute(w io.Writer) error
+}
+
 // htmlAttr represents an HTML attribute.
 type htmlAttr struct {
 	Name  string
@@ -112,6 +115,7 @@ type htmlAttr struct {
 
 var _ Node = (*htmlAttr)(nil)
 var _ fmt.Stringer = (*htmlAttr)(nil)
+var _ HtmlAttributer = (*htmlAttr)(nil)
 
 func (a htmlAttr) Render(w io.Writer) error {
 	var err error
@@ -132,15 +136,14 @@ func (a htmlAttr) Render(w io.Writer) error {
 	}
 
 	if needsEscaping(a.Value) {
-		// Use template.HTMLEscape for attributes that need escaping
 		template.HTMLEscape(w, []byte(a.Value))
 	} else {
-		// No escaping needed, write directly.
 		_, err = io.WriteString(w, a.Value)
 	}
-	if err != nil { // Check error from either path above
+	if err != nil {
 		return err
 	}
+
 	if _, err = w.Write(bQuote); err != nil {
 		return err
 	}
@@ -155,10 +158,6 @@ func (a htmlAttr) String() string {
 	var b strings.Builder
 	a.Render(&b)
 	return b.String()
-}
-
-type HtmlAttributer interface {
-	RenderAttribute(w io.Writer) error
 }
 
 // ------------------------------------------------------------------
@@ -179,13 +178,11 @@ func (s htmlSafe) Render(w io.Writer) error {
 		template.HTMLEscape(w, []byte(val))
 		return nil
 	}
-	// No escaping needed, write directly.
 	_, err := io.WriteString(w, val)
 	return err
 }
 
 func (s htmlSafe) String() string {
-	// For fmt.Stringer, produce the rendered (potentially escaped) string
 	var b strings.Builder
 	s.Render(&b)
 	return b.String()
@@ -203,7 +200,6 @@ func (s htmlRaw) Render(w io.Writer) error {
 }
 
 func (s htmlRaw) String() string {
-	// Raw string's String() representation is itself.
 	return string(s)
 }
 
@@ -216,8 +212,8 @@ func (s htmlRaw) String() string {
 // Group is a convenience type for Grouping multiple Nodes together.
 type Group []Node
 
-var _ Node = (Group)(nil)         // Ensure Group still implements Node after htmlString removal
-var _ fmt.Stringer = (Group)(nil) // Ensure Group still implements fmt.Stringer
+var _ Node = (Group)(nil)
+var _ fmt.Stringer = (Group)(nil)
 
 func (g Group) Render(w io.Writer) error {
 	for _, node := range g {
@@ -255,8 +251,7 @@ func Map[T any](items []T, fn func(T) Node) Group {
 //
 // ------------------------------------------------------------------
 
-// emptyNode represents a node that renders nothing.
-var emptyNode Node = htmlRaw("") // Using RawString as it's simple and renders empty.
+var emptyNode Node = htmlRaw("")
 
 // If is a utility function that returns a Node if the condition is true,
 // otherwise returns a shared empty node.
@@ -292,9 +287,11 @@ type HandlerFunc func(http.ResponseWriter, *http.Request) Node
 func Handler(next HandlerFunc) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		node := next(w, r)
+
 		if node == nil {
 			status := http.StatusInternalServerError
 			http.Error(w, http.StatusText(status), status)
+
 		} else if err := node.Render(w); err != nil {
 			status := http.StatusInternalServerError
 			http.Error(w, http.StatusText(status), status)
