@@ -2,7 +2,7 @@ package dom
 
 import (
 	"fmt"
-	"html"
+	"html/template" // For template.HTMLEscape
 	"io"
 	"net/http"
 	"strings"
@@ -17,6 +17,12 @@ var (
 	bEqualsQuote = []byte(`="`)
 	bQuote       = []byte(`"`)
 )
+
+// needsEscaping checks if a string contains characters that require HTML escaping.
+// This is based on the characters handled by html/template.HTMLEscapeString.
+func needsEscaping(s string) bool {
+	return strings.ContainsAny(s, "'\"&<>\000")
+}
 
 type Node interface {
 	Render(w io.Writer) error
@@ -49,8 +55,8 @@ func (e htmlElement) Render(w io.Writer) error {
 
 	// Render attributes
 	for _, c := range e.Children {
-		if attr, ok := c.(htmlAttr); ok {
-			if err := attr.Render(w); err != nil {
+		if attr, ok := c.(HtmlAttributer); ok {
+			if err := attr.RenderAttribute(w); err != nil {
 				return err
 			}
 		}
@@ -67,7 +73,7 @@ func (e htmlElement) Render(w io.Writer) error {
 
 	// Render children
 	for _, c := range e.Children {
-		if _, ok := c.(htmlAttr); !ok {
+		if _, ok := c.(HtmlAttributer); !ok {
 			if err := c.Render(w); err != nil {
 				return err
 			}
@@ -124,7 +130,15 @@ func (a htmlAttr) Render(w io.Writer) error {
 	if _, err = w.Write(bEqualsQuote); err != nil {
 		return err
 	}
-	if _, err = io.WriteString(w, html.EscapeString(a.Value)); err != nil {
+
+	if needsEscaping(a.Value) {
+		// Use template.HTMLEscape for attributes that need escaping
+		template.HTMLEscape(w, []byte(a.Value))
+	} else {
+		// No escaping needed, write directly.
+		_, err = io.WriteString(w, a.Value)
+	}
+	if err != nil { // Check error from either path above
 		return err
 	}
 	if _, err = w.Write(bQuote); err != nil {
@@ -133,54 +147,77 @@ func (a htmlAttr) Render(w io.Writer) error {
 	return nil
 }
 
+func (a htmlAttr) RenderAttribute(w io.Writer) error {
+	return a.Render(w)
+}
+
 func (a htmlAttr) String() string {
 	var b strings.Builder
 	a.Render(&b)
 	return b.String()
 }
 
-// ------------------------------------------------------------------
-//
-//
-//
-// ------------------------------------------------------------------
-
-// htmlString represents a piece of HTML content.
-type htmlString struct {
-	Value string
-	Raw   bool
+type HtmlAttributer interface {
+	RenderAttribute(w io.Writer) error
 }
 
-var _ Node = (*htmlString)(nil)
-var _ fmt.Stringer = (*htmlString)(nil)
+// ------------------------------------------------------------------
+//
+//
+//
+// ------------------------------------------------------------------
 
-func (s htmlString) Render(w io.Writer) error {
-	if s.Raw {
-		_, err := io.WriteString(w, s.Value)
-		return err
-	} else {
-		_, err := io.WriteString(w, html.EscapeString(s.Value))
-		return err
+// htmlSafe represents a string that will be HTML-escaped upon rendering.
+type htmlSafe string
+
+var _ Node = htmlSafe("")
+var _ fmt.Stringer = htmlSafe("")
+
+func (s htmlSafe) Render(w io.Writer) error {
+	val := string(s)
+	if needsEscaping(val) {
+		template.HTMLEscape(w, []byte(val))
+		return nil
 	}
+	// No escaping needed, write directly.
+	_, err := io.WriteString(w, val)
+	return err
 }
 
-func (s htmlString) String() string {
+func (s htmlSafe) String() string {
+	// For fmt.Stringer, produce the rendered (potentially escaped) string
 	var b strings.Builder
 	s.Render(&b)
 	return b.String()
 }
 
+// htmlRaw represents a string that will be rendered as-is, without HTML escaping.
+type htmlRaw string
+
+var _ Node = htmlRaw("")
+var _ fmt.Stringer = htmlRaw("")
+
+func (s htmlRaw) Render(w io.Writer) error {
+	_, err := io.WriteString(w, string(s))
+	return err
+}
+
+func (s htmlRaw) String() string {
+	// Raw string's String() representation is itself.
+	return string(s)
+}
+
 // ------------------------------------------------------------------
 //
 //
 //
 // ------------------------------------------------------------------
 
-// Group is a convenience type for grouping multiple Nodes together.
+// Group is a convenience type for Grouping multiple Nodes together.
 type Group []Node
 
-var _ Node = (*Group)(nil)
-var _ fmt.Stringer = (*Group)(nil)
+var _ Node = (Group)(nil)         // Ensure Group still implements Node after htmlString removal
+var _ fmt.Stringer = (Group)(nil) // Ensure Group still implements fmt.Stringer
 
 func (g Group) Render(w io.Writer) error {
 	for _, node := range g {
@@ -218,7 +255,8 @@ func Map[T any](items []T, fn func(T) Node) Group {
 //
 // ------------------------------------------------------------------
 
-var emptyNode = htmlString{Value: ""}
+// emptyNode represents a node that renders nothing.
+var emptyNode Node = htmlRaw("") // Using RawString as it's simple and renders empty.
 
 // If is a utility function that returns a Node if the condition is true,
 // otherwise returns a shared empty node.
@@ -301,16 +339,11 @@ func CreateAttrBoolean(name string) Node {
 }
 
 func CreateString(value string) Node {
-	return htmlString{
-		Value: value,
-	}
+	return htmlSafe(value)
 }
 
 func CreateStringRaw(value string) Node {
-	return htmlString{
-		Value: value,
-		Raw:   true,
-	}
+	return htmlRaw(value)
 }
 
 // ------------------------------------------------------------------
