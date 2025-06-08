@@ -2,28 +2,14 @@ package dom
 
 import (
 	"fmt"
-	"html/template" // For template.HTMLEscape
+	"html"
+	"html/template"
 	"io"
 	"net/http"
 	"strings"
 )
 
-// Common byte slices for HTML rendering to reduce allocations.
-var (
-	bLt          = []byte("<")
-	bGt          = []byte(">")
-	bLtSlash     = []byte("</")
-	bSpace       = []byte(" ")
-	bEqualsQuote = []byte(`="`)
-	bQuote       = []byte(`"`)
-)
-
-// needsEscaping checks if a string contains characters that require HTML escaping.
-// This is based on the characters handled by html/template.HTMLEscapeString.
-func needsEscaping(s string) bool {
-	return strings.ContainsAny(s, "'\"&<>\000")
-}
-
+// Node is the basic interface for all renderable entities in the DOM.
 type Node interface {
 	Render(w io.Writer) error
 }
@@ -44,7 +30,7 @@ type htmlElement struct {
 var _ Node = (*htmlElement)(nil)
 var _ fmt.Stringer = (*htmlElement)(nil)
 
-func (e htmlElement) Render(w io.Writer) error {
+func (e *htmlElement) Render(w io.Writer) error {
 	var err error
 	if _, err = w.Write(bLt); err != nil {
 		return err
@@ -54,8 +40,8 @@ func (e htmlElement) Render(w io.Writer) error {
 	}
 
 	// Render attributes
-	for _, c := range e.Children {
-		if attr, ok := c.(HtmlAttributer); ok {
+	for _, child := range e.Children {
+		if attr, ok := child.(HtmlAttributer); ok {
 			if err = attr.RenderAttribute(w); err != nil {
 				return err
 			}
@@ -70,10 +56,11 @@ func (e htmlElement) Render(w io.Writer) error {
 	if e.IsVoid {
 		return nil
 	}
+
 	// Render children
-	for _, c := range e.Children {
-		if _, ok := c.(HtmlAttributer); !ok {
-			if err = c.Render(w); err != nil {
+	for _, child := range e.Children {
+		if _, ok := child.(HtmlAttributer); !ok {
+			if err = child.Render(w); err != nil {
 				return err
 			}
 		}
@@ -91,7 +78,7 @@ func (e htmlElement) Render(w io.Writer) error {
 	return nil
 }
 
-func (e htmlElement) String() string {
+func (e *htmlElement) String() string {
 	var b strings.Builder
 	e.Render(&b)
 	return b.String()
@@ -103,6 +90,7 @@ func (e htmlElement) String() string {
 //
 // ------------------------------------------------------------------
 
+// HtmlAttributer defines the interface for nodes that can be rendered as HTML attributes.
 type HtmlAttributer interface {
 	RenderAttribute(w io.Writer) error
 }
@@ -117,7 +105,7 @@ var _ Node = (*htmlAttr)(nil)
 var _ fmt.Stringer = (*htmlAttr)(nil)
 var _ HtmlAttributer = (*htmlAttr)(nil)
 
-func (a htmlAttr) Render(w io.Writer) error {
+func (a *htmlAttr) Render(w io.Writer) error {
 	var err error
 	if _, err = w.Write(bSpace); err != nil {
 		return err
@@ -140,6 +128,7 @@ func (a htmlAttr) Render(w io.Writer) error {
 	} else {
 		_, err = io.WriteString(w, a.Value)
 	}
+
 	if err != nil {
 		return err
 	}
@@ -150,11 +139,11 @@ func (a htmlAttr) Render(w io.Writer) error {
 	return nil
 }
 
-func (a htmlAttr) RenderAttribute(w io.Writer) error {
+func (a *htmlAttr) RenderAttribute(w io.Writer) error {
 	return a.Render(w)
 }
 
-func (a htmlAttr) String() string {
+func (a *htmlAttr) String() string {
 	var b strings.Builder
 	a.Render(&b)
 	return b.String()
@@ -175,8 +164,8 @@ var _ fmt.Stringer = htmlSafe("")
 func (s htmlSafe) Render(w io.Writer) error {
 	val := string(s)
 	if needsEscaping(val) {
-		template.HTMLEscape(w, []byte(val))
-		return nil
+		_, err := io.WriteString(w, html.EscapeString(val))
+		return err
 	}
 	_, err := io.WriteString(w, val)
 	return err
@@ -209,7 +198,7 @@ func (s htmlRaw) String() string {
 //
 // ------------------------------------------------------------------
 
-// Group is a convenience type for Grouping multiple Nodes together.
+// Group is a convenience type for grouping multiple Nodes together.
 type Group []Node
 
 var _ Node = (Group)(nil)
@@ -306,15 +295,37 @@ func Handler(next HandlerFunc) http.Handler {
 //
 // ------------------------------------------------------------------
 
+// Common byte slices for HTML rendering to reduce allocations.
+var (
+	bLt          = []byte("<")
+	bGt          = []byte(">")
+	bLtSlash     = []byte("</")
+	bSpace       = []byte(" ")
+	bEqualsQuote = []byte(`="`)
+	bQuote       = []byte(`"`)
+)
+
+// needsEscaping checks if a string contains characters that require HTML escaping.
+// This is based on the characters handled by html/template.HTMLEscapeString.
+func needsEscaping(s string) bool {
+	return strings.ContainsAny(s, "'\"&<>\000")
+}
+
+// ------------------------------------------------------------------
+//
+//
+//
+// ------------------------------------------------------------------
+
 func CreateElement(name string, children ...Node) Node {
-	return htmlElement{
+	return &htmlElement{
 		Name:     name,
 		Children: children,
 	}
 }
 
 func CreateElementVoid(name string, children ...Node) Node {
-	return htmlElement{
+	return &htmlElement{
 		Name:     name,
 		IsVoid:   true,
 		Children: children,
@@ -322,14 +333,14 @@ func CreateElementVoid(name string, children ...Node) Node {
 }
 
 func CreateAttr(name, value string) Node {
-	return htmlAttr{
+	return &htmlAttr{
 		Name:  name,
 		Value: value,
 	}
 }
 
 func CreateAttrBoolean(name string) Node {
-	return htmlAttr{
+	return &htmlAttr{
 		Name:  name,
 		Value: "",
 	}

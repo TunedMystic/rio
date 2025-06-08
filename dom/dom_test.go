@@ -315,13 +315,13 @@ func TestAttributes(t *testing.T) {
 
 func TestHtmlElement(t *testing.T) {
 	t.Run("CreateElement/Render/String", func(t *testing.T) {
-		r := CreateElement("div", htmlAttr{Name: "class", Value: "test"})
+		r := CreateElement("div", &htmlAttr{Name: "class", Value: "test"})
 		assert.Equal(t, render(r), `<div class="test"></div>`)
 		assert.Equal(t, fmt.Sprint(r), `<div class="test"></div>`)
 	})
 
 	t.Run("CreateElementVoid/Render/String", func(t *testing.T) {
-		r := CreateElementVoid("img", htmlAttr{Name: "src", Value: "image.jpg"})
+		r := CreateElementVoid("img", &htmlAttr{Name: "src", Value: "image.jpg"})
 		assert.Equal(t, render(r), `<img src="image.jpg">`)
 		assert.Equal(t, fmt.Sprint(r), `<img src="image.jpg">`)
 	})
