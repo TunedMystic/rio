@@ -19,6 +19,12 @@ test-v: clean
 	@go tool cover -func coverage.out
 
 
+## @(app) - 🏎️ Run benchmarks
+bench:
+	@echo "✨🧪✨ Running benchmarks\n"
+	@go test -bench=. -benchmem -run=^$$ -count=1 ./...
+
+
 ## @(app) - ✨ Remove temp files and dirs
 clean:
 	@echo "✨✨ Cleaning temp files\n"

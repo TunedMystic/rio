@@ -10,70 +10,50 @@ import (
 	"github.com/tunedmystic/rio/internal/assert"
 )
 
-func TestHtmlElement_Render_Errors(t *testing.T) {
-	errWriterSentinel := errors.New("writer error")
-	// Use error messages that match the modified errorAttr and existing errorNode
-	errAttrRenderSentinel := errors.New("error from errorAttr.RenderAttribute")
-	errChildRenderSentinel := errors.New("error from errorNode.Render")
+// ------------------------------------------------------------------
+//
+//
+//
+// ------------------------------------------------------------------
+
+func Test_Group_Render_Errors(t *testing.T) {
+	errNodeRenderSentinel := errors.New("error from errorNode.Render")
+	errWriterSentinel := errors.New("writer error from group test")
 
 	tests := []struct {
 		name        string
-		element     Node
-		writer      *errorWriter // nil if not testing writer failure
+		group       Group
+		writer      *errorWriter
 		expectedErr error
 	}{
 		{
-			name:        "fail write opening <",
-			element:     Div(),
+			name:        "empty group",
+			group:       Group{},
+			writer:      nil,
+			expectedErr: nil,
+		},
+		{
+			name:        "single failing node",
+			group:       Group{errorNode{}},
+			writer:      nil,
+			expectedErr: errNodeRenderSentinel,
+		},
+		{
+			name:        "first node fails in a multi-node group",
+			group:       Group{errorNode{}, Text("this should not render")},
+			writer:      nil,
+			expectedErr: errNodeRenderSentinel,
+		},
+		{
+			name:        "middle node fails in a multi-node group",
+			group:       Group{Text("first"), errorNode{}, Text("this should not render")},
+			writer:      nil,
+			expectedErr: errNodeRenderSentinel,
+		},
+		{
+			name:        "writer error during rendering of a child node",
+			group:       Group{Text("try to write this")},
 			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1},
-			expectedErr: errWriterSentinel,
-		},
-		{
-			name:        "fail write element name",
-			element:     Div(),
-			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 2},
-			expectedErr: errWriterSentinel,
-		},
-		{
-			name:        "fail attribute's RenderAttribute method",
-			element:     Div(errorAttr{}),
-			writer:      nil,
-			expectedErr: errAttrRenderSentinel,
-		},
-		{
-			name:        "fail write > after attributes",
-			element:     Div(Class("foo")),                                                         // Class("foo") makes 5 writes
-			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1 + 1 + 5 + 1}, // <, div, (attr: " ", class, =, "foo", "), >
-			expectedErr: errWriterSentinel,
-		},
-		{
-			name:        "fail write > for void element after attributes",
-			element:     Img(Src("test.jpg")),                                                      // Img is void, Src attribute makes 5 writes
-			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1 + 1 + 5 + 1}, // <, img, (attr: " ", src, =, "test.jpg", "), >
-			expectedErr: errWriterSentinel,
-		},
-		{
-			name:        "fail child's Render method",
-			element:     Div(errorNode{}),
-			writer:      nil,
-			expectedErr: errChildRenderSentinel,
-		},
-		{
-			name:        "fail write </ for closing tag",
-			element:     Div(Text("hi")),                                                               // Text("hi") makes 1 write
-			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1 + 1 + 1 + 1 + 1}, // <, div, >, "hi", </
-			expectedErr: errWriterSentinel,
-		},
-		{
-			name:        "fail write closing element name",
-			element:     Div(Text("hi")),
-			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1 + 1 + 1 + 1 + 1 + 1}, // <, div, >, "hi", </, div
-			expectedErr: errWriterSentinel,
-		},
-		{
-			name:        "fail write final > for closing tag",
-			element:     Div(Text("hi")),
-			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1 + 1 + 1 + 1 + 1 + 1 + 1}, // <, div, >, "hi", </, div, >
 			expectedErr: errWriterSentinel,
 		},
 	}
@@ -84,8 +64,8 @@ func TestHtmlElement_Render_Errors(t *testing.T) {
 			if tt.writer != nil {
 				w = tt.writer
 			}
-			err := tt.element.Render(w)
-			assert.Equal(t, err.Error(), tt.expectedErr.Error())
+			err := tt.group.Render(w)
+			assert.Error(t, err, tt.expectedErr)
 		})
 	}
 }
@@ -96,7 +76,7 @@ func TestHtmlElement_Render_Errors(t *testing.T) {
 //
 // ------------------------------------------------------------------
 
-func TestHtmlString(t *testing.T) {
+func Test_HtmlString(t *testing.T) {
 	t.Run("CreateString/Render/String", func(t *testing.T) {
 		r := CreateString("test < testing")
 		assert.Equal(t, render(r), "test &lt; testing")
@@ -116,7 +96,7 @@ func TestHtmlString(t *testing.T) {
 //
 // ------------------------------------------------------------------
 
-func TestControlStructures(t *testing.T) {
+func Test_ControlStructures(t *testing.T) {
 	t.Run("Group", func(t *testing.T) {
 		r := Group{
 			Div(Text("foo")),
@@ -174,7 +154,7 @@ func Benchmark_Document(b *testing.B) {
 			)
 		}
 		doc := Div(elements...)
-		_ = doc.Render(io.Discard)
+		renderNull(doc)
 	}
 }
 
@@ -196,12 +176,10 @@ func Benchmark_Map(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		// Map items to Nodes
 		group := Map(items, func(s string) Node {
 			return Li(Text(s))
 		})
-		// Render the group
-		_ = group.Render(io.Discard)
+		renderNull(group)
 	}
 }
 
@@ -224,7 +202,7 @@ func Benchmark_Group(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = group.Render(io.Discard)
+		renderNull(group)
 	}
 }
 
@@ -236,8 +214,12 @@ func Benchmark_Group(b *testing.B) {
 
 func render(n Node) string {
 	var b strings.Builder
-	n.Render(&b)
+	_ = n.Render(&b)
 	return b.String()
+}
+
+func renderNull(n Node) {
+	_ = n.Render(io.Discard)
 }
 
 // ------------------------------------------------------------------
@@ -284,11 +266,8 @@ var _ Node = (*errorNode)(nil)
 // errorWriter is a mock io.Writer that fails on the Nth call to Write.
 type errorWriter struct {
 	targetErr      error
-	failOnNthWrite int // 1-based index of Write call to fail on
+	failOnNthWrite int
 	writeCount     int
-	// buf can be used to inspect what was written before the error, if necessary.
-	// For these tests, we primarily care about the error propagation.
-	// buf bytes.Buffer
 }
 
 func (ew *errorWriter) Write(p []byte) (n int, err error) {
@@ -296,8 +275,7 @@ func (ew *errorWriter) Write(p []byte) (n int, err error) {
 	if ew.writeCount == ew.failOnNthWrite {
 		return 0, ew.targetErr
 	}
-	// ew.buf.Write(p)
-	return len(p), nil // Simulate successful write for non-failing calls
+	return len(p), nil
 }
 
 var _ io.Writer = (*errorWriter)(nil)

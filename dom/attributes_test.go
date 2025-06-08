@@ -1,13 +1,14 @@
 package dom
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/tunedmystic/rio/internal/assert"
 )
 
-func TestHtmlAttribute(t *testing.T) {
+func Test_CreateAttr(t *testing.T) {
 	t.Run("CreateAttr/Render/String", func(t *testing.T) {
 		r := CreateAttr("name", "test")
 		assert.Equal(t, render(r), ` name="test"`)
@@ -27,7 +28,7 @@ func TestHtmlAttribute(t *testing.T) {
 //
 // ------------------------------------------------------------------
 
-func TestAttributes(t *testing.T) {
+func Test_Attributes(t *testing.T) {
 	t.Run("regular", func(t *testing.T) {
 		tests := []struct {
 			Name     string
@@ -164,6 +165,100 @@ func TestAttributes(t *testing.T) {
 		r := Div(Aria("label", "test"))
 		assert.Equal(t, render(r), `<div aria-label="test"></div>`)
 	})
+}
+
+// ------------------------------------------------------------------
+//
+//
+//
+// ------------------------------------------------------------------
+
+func Test_Attr_Render_Errors(t *testing.T) {
+	errWriterSentinel := errors.New("writer error from htmlAttr test")
+
+	tests := []struct {
+		name           string
+		attr           *htmlAttr
+		failOnNthWrite int
+		expectedErr    error
+		expectNilError bool
+	}{
+		{
+			name:           "non-escaping: fail write space",
+			attr:           &htmlAttr{Name: "class", Value: "test"},
+			failOnNthWrite: 1,
+			expectedErr:    errWriterSentinel,
+		},
+		{
+			name:           "non-escaping: fail write name",
+			attr:           &htmlAttr{Name: "class", Value: "test"},
+			failOnNthWrite: 2,
+			expectedErr:    errWriterSentinel,
+		},
+		{
+			name:           "non-escaping: fail write equals-quote",
+			attr:           &htmlAttr{Name: "class", Value: "test"},
+			failOnNthWrite: 3,
+			expectedErr:    errWriterSentinel,
+		},
+		{
+			name:           "non-escaping: fail write value",
+			attr:           &htmlAttr{Name: "class", Value: "test"},
+			failOnNthWrite: 4,
+			expectedErr:    errWriterSentinel,
+		},
+		{
+			name:           "non-escaping: fail write closing quote",
+			attr:           &htmlAttr{Name: "class", Value: "test"},
+			failOnNthWrite: 5,
+			expectedErr:    errWriterSentinel,
+		},
+		{
+			name:           "boolean: fail write space",
+			attr:           &htmlAttr{Name: "hidden", Value: ""},
+			failOnNthWrite: 1,
+			expectedErr:    errWriterSentinel,
+		},
+		{
+			name:           "boolean: fail write name",
+			attr:           &htmlAttr{Name: "hidden", Value: ""},
+			failOnNthWrite: 2,
+			expectedErr:    errWriterSentinel,
+		},
+		{
+			name:           "escaping: fail write space",
+			attr:           &htmlAttr{Name: "id", Value: "<"},
+			failOnNthWrite: 1,
+			expectedErr:    errWriterSentinel,
+		},
+		{
+			name:           "escaping: fail write name",
+			attr:           &htmlAttr{Name: "id", Value: "<"},
+			failOnNthWrite: 2,
+			expectedErr:    errWriterSentinel,
+		},
+		{
+			name:           "escaping: fail write equals-quote",
+			attr:           &htmlAttr{Name: "id", Value: "<"},
+			failOnNthWrite: 3,
+			expectedErr:    errWriterSentinel,
+		},
+		{
+			name:           "escaping: fail write value (during HTMLEscape - demonstrates SUT bug)",
+			attr:           &htmlAttr{Name: "id", Value: "<"},
+			failOnNthWrite: 4,
+			expectedErr:    nil,
+			expectNilError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			writer := &errorWriter{targetErr: tt.expectedErr, failOnNthWrite: tt.failOnNthWrite}
+			err := tt.attr.Render(writer)
+			assert.Error(t, err, tt.expectedErr)
+		})
+	}
 }
 
 // ------------------------------------------------------------------

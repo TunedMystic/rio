@@ -2,6 +2,7 @@ package dom
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -10,7 +11,7 @@ import (
 	"github.com/tunedmystic/rio/internal/assert"
 )
 
-func TestHtmlElement(t *testing.T) {
+func Test_CreateElement(t *testing.T) {
 	t.Run("CreateElement/Render/String", func(t *testing.T) {
 		r := CreateElement("div", &htmlAttr{Name: "class", Value: "test"})
 		assert.Equal(t, render(r), `<div class="test"></div>`)
@@ -28,14 +29,14 @@ func TestHtmlElement(t *testing.T) {
 		// w := ErrorWriter{}
 		var b bytes.Buffer
 		err := r.Render(&b)
-		assert.Equal(t, err.Error(), "error from errorAttr.RenderAttribute")
+		assert.Error(t, err, errors.New("error from errorAttr.RenderAttribute"))
 	})
 
 	t.Run("Render error on children", func(t *testing.T) {
 		r := Div(Class("test"), errorNode{})
 		var b bytes.Buffer
 		err := r.Render(&b)
-		assert.Equal(t, err.Error(), "error from errorNode.Render")
+		assert.Error(t, err, errors.New("error from errorNode.Render"))
 	})
 }
 
@@ -45,7 +46,38 @@ func TestHtmlElement(t *testing.T) {
 //
 // ------------------------------------------------------------------
 
-func TestElements(t *testing.T) {
+func Test_Doctype(t *testing.T) {
+	t.Run("doctype", func(t *testing.T) {
+		r := Doctype(Html(Lang("en"), Head(Meta(Charset("UTF-8")))))
+		assert.Equal(t, render(r), `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head></html>`)
+	})
+}
+
+// ------------------------------------------------------------------
+//
+//
+//
+// ------------------------------------------------------------------
+
+func Test_String(t *testing.T) {
+	t.Run("text", func(t *testing.T) {
+		r := Text("test < testing")
+		assert.Equal(t, render(r), "test &lt; testing")
+	})
+
+	t.Run("raw", func(t *testing.T) {
+		r := Raw("test < testing")
+		assert.Equal(t, render(r), "test < testing")
+	})
+}
+
+// ------------------------------------------------------------------
+//
+//
+//
+// ------------------------------------------------------------------
+
+func Test_Elements(t *testing.T) {
 	t.Run("regular", func(t *testing.T) {
 		tests := []struct {
 			Name     string
@@ -183,21 +215,91 @@ func TestElements(t *testing.T) {
 			})
 		}
 	})
+}
 
-	t.Run("doctype", func(t *testing.T) {
-		r := Doctype(Html(Lang("en"), Head(Meta(Charset("UTF-8")))))
-		assert.Equal(t, render(r), `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head></html>`)
-	})
+// ------------------------------------------------------------------
+//
+//
+//
+// ------------------------------------------------------------------
 
-	t.Run("text", func(t *testing.T) {
-		r := Text("test < testing")
-		assert.Equal(t, render(r), "test &lt; testing")
-	})
+func Test_Element_Render_Errors(t *testing.T) {
+	errWriterSentinel := errors.New("writer error")
+	errAttrRenderSentinel := errors.New("error from errorAttr.RenderAttribute")
+	errChildRenderSentinel := errors.New("error from errorNode.Render")
 
-	t.Run("raw", func(t *testing.T) {
-		r := Raw("test < testing")
-		assert.Equal(t, render(r), "test < testing")
-	})
+	tests := []struct {
+		name        string
+		element     Node
+		writer      *errorWriter
+		expectedErr error
+	}{
+		{
+			name:        "fail write opening <",
+			element:     Div(),
+			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1},
+			expectedErr: errWriterSentinel,
+		},
+		{
+			name:        "fail write element name",
+			element:     Div(),
+			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 2},
+			expectedErr: errWriterSentinel,
+		},
+		{
+			name:        "fail attribute's RenderAttribute method",
+			element:     Div(errorAttr{}),
+			writer:      nil,
+			expectedErr: errAttrRenderSentinel,
+		},
+		{
+			name:        "fail write > after attributes",
+			element:     Div(Class("foo")),
+			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1 + 1 + 5 + 1},
+			expectedErr: errWriterSentinel,
+		},
+		{
+			name:        "fail write > for void element after attributes",
+			element:     Img(Src("test.jpg")),
+			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1 + 1 + 5 + 1},
+			expectedErr: errWriterSentinel,
+		},
+		{
+			name:        "fail child's Render method",
+			element:     Div(errorNode{}),
+			writer:      nil,
+			expectedErr: errChildRenderSentinel,
+		},
+		{
+			name:        "fail write </ for closing tag",
+			element:     Div(Text("hi")),
+			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1 + 1 + 1 + 1 + 1},
+			expectedErr: errWriterSentinel,
+		},
+		{
+			name:        "fail write closing element name",
+			element:     Div(Text("hi")),
+			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1 + 1 + 1 + 1 + 1 + 1},
+			expectedErr: errWriterSentinel,
+		},
+		{
+			name:        "fail write final > for closing tag",
+			element:     Div(Text("hi")),
+			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1 + 1 + 1 + 1 + 1 + 1 + 1},
+			expectedErr: errWriterSentinel,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var w io.Writer = io.Discard
+			if tt.writer != nil {
+				w = tt.writer
+			}
+			err := tt.element.Render(w)
+			assert.Error(t, err, tt.expectedErr)
+		})
+	}
 }
 
 // ------------------------------------------------------------------
@@ -232,13 +334,12 @@ func Benchmark_ElementsDeeplyNested(b *testing.B) {
 	var node Node = Div()
 
 	for j := 0; j < depth; j++ {
-		// Create a new Div that wraps the previous node
 		node = Div(Class("inner"), node)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = node.Render(io.Discard)
+		renderNull(node)
 	}
 }
 
@@ -261,7 +362,7 @@ func Benchmark_ElementWithManyAttributes(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = node.Render(io.Discard)
+		renderNull(node)
 	}
 }
 
@@ -274,13 +375,12 @@ func Benchmark_ElementWithManyAttributes(b *testing.B) {
 func Benchmark_StringEscaped(b *testing.B) {
 	b.ReportAllocs()
 
-	// A string that contains characters requiring HTML escaping
 	longString := strings.Repeat("Text with <html> tags & special chars like < > & \" ' ", 50)
 	node := Text(longString)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = node.Render(io.Discard)
+		renderNull(node)
 	}
 }
 
@@ -298,6 +398,6 @@ func Benchmark_StringRaw(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = node.Render(io.Discard)
+		renderNull(node)
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/tunedmystic/rio/internal/assert"
 )
 
-func TestHandlerMiddleware(t *testing.T) {
+func Test_Handler(t *testing.T) {
 	t.Run("DomHandler", func(t *testing.T) {
 		fn := Handler(func(w http.ResponseWriter, r *http.Request) Node {
 			return Div(Text("Hello, World!"))
