@@ -36,6 +36,22 @@ func Error(t *testing.T, got, want error) {
 	}
 }
 
+// True checks if the given condition is true.
+func True(t *testing.T, got bool) {
+	t.Helper()
+	if !got {
+		t.Errorf("want true, got false")
+	}
+}
+
+// False checks if the given condition is false.
+func False(t *testing.T, got bool) {
+	t.Helper()
+	if got {
+		t.Errorf("want false, got true")
+	}
+}
+
 // Panic checks if the given function f panics.
 func Panic(t *testing.T, f func()) {
 	t.Helper()
