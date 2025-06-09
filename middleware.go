@@ -1,6 +1,7 @@
 package rio
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -27,35 +28,38 @@ func (w *logResponseWriter) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
 }
 
-// LogRequest is a middleware which logs the http request and response status.
-func LogRequest(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		ww := &logResponseWriter{
-			ResponseWriter: w,
-			status:         http.StatusOK,
+// LogRequest returns a middleware which logs the http request and response status using the provided logger.
+func LogRequest(logger *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			ww := &logResponseWriter{
+				ResponseWriter: w,
+				status:         http.StatusOK,
+			}
+
+			defer func(start time.Time) {
+				logger.LogAttrs(context.Background(), slog.LevelInfo, "request",
+					slog.Int("status", ww.status),
+					slog.String("method", r.Method),
+					slog.String("url", r.URL.RequestURI()),
+					slog.Duration("time", time.Since(start)),
+				)
+			}(time.Now())
+
+			next.ServeHTTP(ww, r)
 		}
-
-		// Defer the logging call.
-		defer func(start time.Time) {
-			LogInfo(
-				"request",
-				slog.Int("status", ww.status),
-				slog.String("method", r.Method),
-				slog.String("url", r.URL.RequestURI()),
-				slog.Duration("time", time.Since(start)),
-			)
-		}(time.Now())
-
-		// Call the next handler
-		next.ServeHTTP(ww, r)
+		return http.HandlerFunc(fn)
 	}
-	return http.HandlerFunc(fn)
 }
 
 // SkipLogger is a middleware which logs the http request and response status
 // if the request url does not match the given path.
-func SkipLogger(excludePath string) func(http.Handler) http.Handler {
+// It uses the provided logger for logging.
+func SkipLogger(logger *slog.Logger, excludePath string) func(http.Handler) http.Handler {
+	logRequestMiddlewareInstance := LogRequest(logger)
+
 	return func(next http.Handler) http.Handler {
+		loggingHandlerForNext := logRequestMiddlewareInstance(next)
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			// If the url matches the excludePath,
 			// the request will not be logged.
@@ -66,7 +70,7 @@ func SkipLogger(excludePath string) func(http.Handler) http.Handler {
 
 			// If the url does not match the excludePath,
 			// the request will be logged.
-			LogRequest(next).ServeHTTP(w, r)
+			loggingHandlerForNext.ServeHTTP(w, r)
 		}
 		return http.HandlerFunc(fn)
 	}
@@ -159,25 +163,12 @@ func CacheControlWithAge(age int) func(http.Handler) http.Handler {
 //
 // ------------------------------------------------------------------
 
-// NotFound is a middleware which returns a 404 Not Found error
+// NotFound is a middleware which executes a Handler
 // if the request path is not "/".
-func NotFound(next http.Handler) http.Handler {
+func NotFound(next404, next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
-			Http404(w, http.StatusText(http.StatusNotFound))
-			return
-		}
-		next.ServeHTTP(w, r)
-	}
-	return http.HandlerFunc(fn)
-}
-
-// NotFound is a middleware which returns a 404 Not Found json error
-// if the request path is not "/".
-func NotFoundJson(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			Json404(w, http.StatusText(http.StatusNotFound))
+			next404.ServeHTTP(w, r)
 			return
 		}
 		next.ServeHTTP(w, r)

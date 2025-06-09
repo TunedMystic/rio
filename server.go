@@ -34,7 +34,7 @@ func NewServer(middleware ...func(http.Handler) http.Handler) *Server {
 		mux: http.NewServeMux(),
 	}
 	if middleware == nil {
-		s.Use(LogRequest, RecoverPanic, SecureHeaders)
+		s.Use(LogRequest(defaultLogger), RecoverPanic, SecureHeaders)
 	} else {
 		s.Use(middleware...)
 	}
