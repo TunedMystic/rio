@@ -3,7 +3,6 @@ package dom
 
 import (
 	"fmt"
-	"html"
 	"html/template"
 	"io"
 	"strings"
@@ -164,8 +163,8 @@ var _ fmt.Stringer = htmlSafe("")
 func (s htmlSafe) Render(w io.Writer) error {
 	val := string(s)
 	if needsEscaping(val) {
-		_, err := io.WriteString(w, html.EscapeString(val))
-		return err
+		template.HTMLEscape(w, []byte(val))
+		return nil
 	}
 	_, err := io.WriteString(w, val)
 	return err
