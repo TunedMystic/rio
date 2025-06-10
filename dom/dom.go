@@ -1,3 +1,4 @@
+// Package dom provides a library for programmatic HTML generation.
 package dom
 
 import (
