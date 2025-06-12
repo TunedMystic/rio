@@ -40,9 +40,11 @@ func (e *htmlElement) Render(w io.Writer) error {
 
 	// Render attributes
 	for _, child := range e.Children {
-		if attr, ok := child.(HtmlAttributer); ok {
-			if err = attr.RenderAttribute(w); err != nil {
-				return err
+		if child != nil {
+			if attr, ok := child.(HtmlAttributer); ok {
+				if err = attr.RenderAttribute(w); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -58,9 +60,11 @@ func (e *htmlElement) Render(w io.Writer) error {
 
 	// Render children
 	for _, child := range e.Children {
-		if _, ok := child.(HtmlAttributer); !ok {
-			if err = child.Render(w); err != nil {
-				return err
+		if child != nil {
+			if _, ok := child.(HtmlAttributer); !ok {
+				if err = child.Render(w); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -105,6 +109,10 @@ var _ fmt.Stringer = (*htmlAttr)(nil)
 var _ HtmlAttributer = (*htmlAttr)(nil)
 
 func (a *htmlAttr) Render(w io.Writer) error {
+	if a == nil {
+		return nil
+	}
+
 	var err error
 	if _, err = w.Write(bSpace); err != nil {
 		return err
@@ -205,8 +213,10 @@ var _ fmt.Stringer = (Group)(nil)
 
 func (g Group) Render(w io.Writer) error {
 	for _, node := range g {
-		if err := node.Render(w); err != nil {
-			return err
+		if node != nil {
+			if err := node.Render(w); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -243,8 +253,10 @@ var _ fmt.Stringer = (*nodeMapper[any])(nil)
 
 func (nm *nodeMapper[T]) Render(w io.Writer) error {
 	for _, item := range nm.items {
-		if err := nm.fn(item).Render(w); err != nil {
-			return err
+		if node := nm.fn(item); node != nil {
+			if err := node.Render(w); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -280,7 +292,10 @@ func (d *htmlDoctype) Render(w io.Writer) error {
 	if _, err := io.WriteString(w, "<!DOCTYPE html>"); err != nil {
 		return err
 	}
-	return d.sibling.Render(w)
+	if d.sibling != nil {
+		return d.sibling.Render(w)
+	}
+	return nil
 }
 
 func (d *htmlDoctype) String() string {

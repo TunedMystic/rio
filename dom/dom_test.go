@@ -227,6 +227,73 @@ func Test_ControlStructures(t *testing.T) {
 
 // ------------------------------------------------------------------
 //
+// Test Nil Checks
+//
+// ------------------------------------------------------------------
+
+func Test_Rendering_NilChecks(t *testing.T) {
+	t.Run("htmlElement attribute is (*htmlAttr)(nil)", func(t *testing.T) {
+		var nilConcreteAttribute Node = (*htmlAttr)(nil)
+		element := Div(Class("test"), nilConcreteAttribute, Id("my-id"))
+
+		var sb strings.Builder
+		err := element.Render(&sb)
+		assert.Error(t, err, nil)
+		assert.Equal(t, sb.String(), `<div class="test" id="my-id"></div>`)
+	})
+
+	t.Run("htmlElement child node is (Node)(nil)", func(t *testing.T) {
+		var nilInterfaceNode Node = nil
+		element := Div(Text("hello"), nilInterfaceNode, Text("world"))
+
+		var sb strings.Builder
+		err := element.Render(&sb)
+		assert.Error(t, err, nil)
+		assert.Equal(t, sb.String(), `<div>helloworld</div>`)
+	})
+
+	t.Run("Group contains (Node)(nil)", func(t *testing.T) {
+		var nilInterfaceNode Node = nil
+		group := Group{
+			Text("first"),
+			nilInterfaceNode,
+			Text("third"),
+		}
+
+		var sb strings.Builder
+		err := group.Render(&sb)
+		assert.Error(t, err, nil)
+		assert.Equal(t, sb.String(), `firstthird`)
+	})
+
+	t.Run("nodeMapper function returns (Node)(nil)", func(t *testing.T) {
+		items := []string{"one", "two", "three"}
+		mapper := Map(items, func(item string) Node {
+			if item == "two" {
+				return nil
+			}
+			return Text(item)
+		})
+
+		var sb strings.Builder
+		err := mapper.Render(&sb)
+		assert.Error(t, err, nil)
+		assert.Equal(t, sb.String(), `onethree`)
+	})
+
+	t.Run("htmlDoctype sibling is (Node)(nil)", func(t *testing.T) {
+		var nilSiblingNode Node = nil
+		doctypeNode := Doctype(nilSiblingNode)
+
+		var sb strings.Builder
+		err := doctypeNode.Render(&sb)
+		assert.Error(t, err, nil)
+		assert.Equal(t, sb.String(), `<!DOCTYPE html>`)
+	})
+}
+
+// ------------------------------------------------------------------
+//
 //
 //
 // ------------------------------------------------------------------
