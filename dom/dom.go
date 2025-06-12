@@ -3,7 +3,6 @@ package dom
 
 import (
 	"fmt"
-	"html"
 	"html/template"
 	"io"
 	"strings"
@@ -41,9 +40,11 @@ func (e *htmlElement) Render(w io.Writer) error {
 
 	// Render attributes
 	for _, child := range e.Children {
-		if attr, ok := child.(HtmlAttributer); ok {
-			if err = attr.RenderAttribute(w); err != nil {
-				return err
+		if child != nil {
+			if attr, ok := child.(HtmlAttributer); ok {
+				if err = attr.RenderAttribute(w); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -59,9 +60,11 @@ func (e *htmlElement) Render(w io.Writer) error {
 
 	// Render children
 	for _, child := range e.Children {
-		if _, ok := child.(HtmlAttributer); !ok {
-			if err = child.Render(w); err != nil {
-				return err
+		if child != nil {
+			if _, ok := child.(HtmlAttributer); !ok {
+				if err = child.Render(w); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -80,7 +83,7 @@ func (e *htmlElement) Render(w io.Writer) error {
 
 func (e *htmlElement) String() string {
 	var b strings.Builder
-	e.Render(&b)
+	_ = e.Render(&b)
 	return b.String()
 }
 
@@ -106,6 +109,10 @@ var _ fmt.Stringer = (*htmlAttr)(nil)
 var _ HtmlAttributer = (*htmlAttr)(nil)
 
 func (a *htmlAttr) Render(w io.Writer) error {
+	if a == nil {
+		return nil
+	}
+
 	var err error
 	if _, err = w.Write(bSpace); err != nil {
 		return err
@@ -145,7 +152,7 @@ func (a *htmlAttr) RenderAttribute(w io.Writer) error {
 
 func (a *htmlAttr) String() string {
 	var b strings.Builder
-	a.Render(&b)
+	_ = a.Render(&b)
 	return b.String()
 }
 
@@ -164,8 +171,8 @@ var _ fmt.Stringer = htmlSafe("")
 func (s htmlSafe) Render(w io.Writer) error {
 	val := string(s)
 	if needsEscaping(val) {
-		_, err := io.WriteString(w, html.EscapeString(val))
-		return err
+		template.HTMLEscape(w, []byte(val))
+		return nil
 	}
 	_, err := io.WriteString(w, val)
 	return err
@@ -173,7 +180,7 @@ func (s htmlSafe) Render(w io.Writer) error {
 
 func (s htmlSafe) String() string {
 	var b strings.Builder
-	s.Render(&b)
+	_ = s.Render(&b)
 	return b.String()
 }
 
@@ -194,7 +201,7 @@ func (s htmlRaw) String() string {
 
 // ------------------------------------------------------------------
 //
-// DOM control structures
+// DOM group
 //
 // ------------------------------------------------------------------
 
@@ -206,8 +213,10 @@ var _ fmt.Stringer = (Group)(nil)
 
 func (g Group) Render(w io.Writer) error {
 	for _, node := range g {
-		if err := node.Render(w); err != nil {
-			return err
+		if node != nil {
+			if err := node.Render(w); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -215,18 +224,91 @@ func (g Group) Render(w io.Writer) error {
 
 func (g Group) String() string {
 	var b strings.Builder
-	g.Render(&b)
+	_ = g.Render(&b)
 	return b.String()
 }
 
-// Map is a utility function that maps a slice of items to a Group of Nodes.
-func Map[T any](items []T, fn func(T) Node) Group {
-	nodes := make([]Node, 0, len(items))
-	for _, item := range items {
-		nodes = append(nodes, fn(item))
+// ------------------------------------------------------------------
+//
+// DOM mapper
+//
+// ------------------------------------------------------------------
+
+// Map is a utility function that turns a slice of items into a Node.
+func Map[T any](items []T, fn func(T) Node) Node {
+	return &nodeMapper[T]{
+		items: items,
+		fn:    fn,
 	}
-	return nodes
 }
+
+// nodeMapper is a type that maps a slice of items to Nodes using a function.
+type nodeMapper[T any] struct {
+	items []T
+	fn    func(T) Node
+}
+
+var _ Node = (*nodeMapper[any])(nil)
+var _ fmt.Stringer = (*nodeMapper[any])(nil)
+
+func (nm *nodeMapper[T]) Render(w io.Writer) error {
+	for _, item := range nm.items {
+		if node := nm.fn(item); node != nil {
+			if err := node.Render(w); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (nm *nodeMapper[T]) String() string {
+	var b strings.Builder
+	_ = nm.Render(&b)
+	return b.String()
+}
+
+// ------------------------------------------------------------------
+//
+// DOM doctype
+//
+// ------------------------------------------------------------------
+
+func Doctype(sibling Node) Node {
+	return &htmlDoctype{
+		sibling: sibling,
+	}
+}
+
+// htmlDoctype represents the <!DOCTYPE html> declaration followed by a sibling Node.
+type htmlDoctype struct {
+	sibling Node
+}
+
+var _ Node = (*htmlDoctype)(nil)
+var _ fmt.Stringer = (*htmlDoctype)(nil)
+
+func (d *htmlDoctype) Render(w io.Writer) error {
+	if _, err := io.WriteString(w, "<!DOCTYPE html>"); err != nil {
+		return err
+	}
+	if d.sibling != nil {
+		return d.sibling.Render(w)
+	}
+	return nil
+}
+
+func (d *htmlDoctype) String() string {
+	var b strings.Builder
+	_ = d.Render(&b)
+	return b.String()
+}
+
+// ------------------------------------------------------------------
+//
+// DOM control structures
+//
+// ------------------------------------------------------------------
 
 var emptyNode Node = htmlRaw("")
 

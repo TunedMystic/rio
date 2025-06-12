@@ -70,6 +70,70 @@ func Test_Group_Render_Errors(t *testing.T) {
 	}
 }
 
+func Test_NodeMapper_Render_Errors(t *testing.T) {
+	errNodeRenderSentinel := errors.New("error from errorNode.Render")
+	errWriterSentinel := errors.New("writer error from nodeMapper test")
+
+	tests := []struct {
+		name        string
+		node        Node
+		writer      *errorWriter
+		expectedErr error
+	}{
+		{
+			name:        "empty items",
+			node:        Map([]string{}, func(s string) Node { return Text(s) }),
+			writer:      nil,
+			expectedErr: nil,
+		},
+		{
+			name:        "single failing node",
+			node:        Map([]string{"fail"}, func(s string) Node { return errorNode{} }),
+			writer:      nil,
+			expectedErr: errNodeRenderSentinel,
+		},
+		{
+			name: "first node fails in a multi-item map",
+			node: Map([]string{"fail", "ok"}, func(s string) Node {
+				if s == "fail" {
+					return errorNode{}
+				}
+				return Text(s)
+			}),
+			writer:      nil,
+			expectedErr: errNodeRenderSentinel,
+		},
+		{
+			name: "middle node fails in a multi-item map",
+			node: Map([]string{"ok", "fail", "another_ok"}, func(s string) Node {
+				if s == "fail" {
+					return errorNode{}
+				}
+				return Text(s)
+			}),
+			writer:      nil,
+			expectedErr: errNodeRenderSentinel,
+		},
+		{
+			name:        "writer error during rendering of a mapped node",
+			node:        Map([]string{"write_me"}, func(s string) Node { return Text(s) }),
+			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1},
+			expectedErr: errWriterSentinel,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var w io.Writer = io.Discard
+			if tt.writer != nil {
+				w = tt.writer
+			}
+			err := tt.node.Render(w)
+			assert.Error(t, err, tt.expectedErr)
+		})
+	}
+}
+
 // ------------------------------------------------------------------
 //
 //
@@ -87,6 +151,32 @@ func Test_HtmlString(t *testing.T) {
 		r := CreateStringRaw("test < testing")
 		assert.Equal(t, render(r), "test < testing")
 		assert.Equal(t, fmt.Sprint(r), "test < testing")
+	})
+}
+
+// ------------------------------------------------------------------
+//
+//
+//
+// ------------------------------------------------------------------
+
+func Test_Doctype(t *testing.T) {
+	t.Run("Render/String", func(t *testing.T) {
+		r := Doctype(Html(Lang("en"), Head(Meta(Charset("UTF-8")))))
+		assert.Equal(t, render(r), `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head></html>`)
+		assert.Equal(t, fmt.Sprint(r), `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head></html>`)
+	})
+
+	t.Run("Render error", func(t *testing.T) {
+		r := Doctype(Html(Lang("en"), Head(Meta(Charset("UTF-8")))))
+		errWriterSentinel := errors.New("writer error from htmlDoctype test")
+		writer := &errorWriter{
+			targetErr:      errWriterSentinel,
+			failOnNthWrite: 1,
+		}
+
+		err := r.Render(writer)
+		assert.Error(t, err, errors.New("writer error from htmlDoctype test"))
 	})
 }
 
@@ -133,6 +223,73 @@ func Test_ControlStructures(t *testing.T) {
 		assert.Equal(t, render(r2), `<div>bar</div>`)
 	})
 
+}
+
+// ------------------------------------------------------------------
+//
+// Test Nil Checks
+//
+// ------------------------------------------------------------------
+
+func Test_Rendering_NilChecks(t *testing.T) {
+	t.Run("htmlElement attribute is (*htmlAttr)(nil)", func(t *testing.T) {
+		var nilConcreteAttribute Node = (*htmlAttr)(nil)
+		element := Div(Class("test"), nilConcreteAttribute, Id("my-id"))
+
+		var sb strings.Builder
+		err := element.Render(&sb)
+		assert.Error(t, err, nil)
+		assert.Equal(t, sb.String(), `<div class="test" id="my-id"></div>`)
+	})
+
+	t.Run("htmlElement child node is (Node)(nil)", func(t *testing.T) {
+		var nilInterfaceNode Node = nil
+		element := Div(Text("hello"), nilInterfaceNode, Text("world"))
+
+		var sb strings.Builder
+		err := element.Render(&sb)
+		assert.Error(t, err, nil)
+		assert.Equal(t, sb.String(), `<div>helloworld</div>`)
+	})
+
+	t.Run("Group contains (Node)(nil)", func(t *testing.T) {
+		var nilInterfaceNode Node = nil
+		group := Group{
+			Text("first"),
+			nilInterfaceNode,
+			Text("third"),
+		}
+
+		var sb strings.Builder
+		err := group.Render(&sb)
+		assert.Error(t, err, nil)
+		assert.Equal(t, sb.String(), `firstthird`)
+	})
+
+	t.Run("nodeMapper function returns (Node)(nil)", func(t *testing.T) {
+		items := []string{"one", "two", "three"}
+		mapper := Map(items, func(item string) Node {
+			if item == "two" {
+				return nil
+			}
+			return Text(item)
+		})
+
+		var sb strings.Builder
+		err := mapper.Render(&sb)
+		assert.Error(t, err, nil)
+		assert.Equal(t, sb.String(), `onethree`)
+	})
+
+	t.Run("htmlDoctype sibling is (Node)(nil)", func(t *testing.T) {
+		var nilSiblingNode Node = nil
+		doctypeNode := Doctype(nilSiblingNode)
+
+		var sb strings.Builder
+		err := doctypeNode.Render(&sb)
+		assert.Error(t, err, nil)
+		assert.Equal(t, sb.String(), `<!DOCTYPE html>`)
+	})
 }
 
 // ------------------------------------------------------------------
