@@ -193,7 +193,7 @@ func (s htmlRaw) String() string {
 
 // ------------------------------------------------------------------
 //
-// DOM control structures
+// DOM group
 //
 // ------------------------------------------------------------------
 
@@ -218,14 +218,49 @@ func (g Group) String() string {
 	return b.String()
 }
 
-// Map is a utility function that maps a slice of items to a Group of Nodes.
-func Map[T any](items []T, fn func(T) Node) Group {
-	nodes := make([]Node, 0, len(items))
-	for _, item := range items {
-		nodes = append(nodes, fn(item))
+// ------------------------------------------------------------------
+//
+// DOM mapper
+//
+// ------------------------------------------------------------------
+
+// Map is a utility function that turns a slice of items into a Node.
+func Map[T any](items []T, fn func(T) Node) Node {
+	return &nodeMapper[T]{
+		items: items,
+		fn:    fn,
 	}
-	return nodes
 }
+
+// nodeMapper is a type that maps a slice of items to Nodes using a function.
+type nodeMapper[T any] struct {
+	items []T
+	fn    func(T) Node
+}
+
+var _ Node = (*nodeMapper[any])(nil)
+var _ fmt.Stringer = (*nodeMapper[any])(nil)
+
+func (nm *nodeMapper[T]) Render(w io.Writer) error {
+	for _, item := range nm.items {
+		if err := nm.fn(item).Render(w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (nm *nodeMapper[T]) String() string {
+	var b strings.Builder
+	nm.Render(&b)
+	return b.String()
+}
+
+// ------------------------------------------------------------------
+//
+// DOM control structures
+//
+// ------------------------------------------------------------------
 
 var emptyNode Node = htmlRaw("")
 

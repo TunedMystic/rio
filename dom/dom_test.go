@@ -70,6 +70,70 @@ func Test_Group_Render_Errors(t *testing.T) {
 	}
 }
 
+func Test_NodeMapper_Render_Errors(t *testing.T) {
+	errNodeRenderSentinel := errors.New("error from errorNode.Render")
+	errWriterSentinel := errors.New("writer error from nodeMapper test")
+
+	tests := []struct {
+		name        string
+		node        Node
+		writer      *errorWriter
+		expectedErr error
+	}{
+		{
+			name:        "empty items",
+			node:        Map([]string{}, func(s string) Node { return Text(s) }),
+			writer:      nil,
+			expectedErr: nil,
+		},
+		{
+			name:        "single failing node",
+			node:        Map([]string{"fail"}, func(s string) Node { return errorNode{} }),
+			writer:      nil,
+			expectedErr: errNodeRenderSentinel,
+		},
+		{
+			name: "first node fails in a multi-item map",
+			node: Map([]string{"fail", "ok"}, func(s string) Node {
+				if s == "fail" {
+					return errorNode{}
+				}
+				return Text(s)
+			}),
+			writer:      nil,
+			expectedErr: errNodeRenderSentinel,
+		},
+		{
+			name: "middle node fails in a multi-item map",
+			node: Map([]string{"ok", "fail", "another_ok"}, func(s string) Node {
+				if s == "fail" {
+					return errorNode{}
+				}
+				return Text(s)
+			}),
+			writer:      nil,
+			expectedErr: errNodeRenderSentinel,
+		},
+		{
+			name:        "writer error during rendering of a mapped node",
+			node:        Map([]string{"write_me"}, func(s string) Node { return Text(s) }),
+			writer:      &errorWriter{targetErr: errWriterSentinel, failOnNthWrite: 1},
+			expectedErr: errWriterSentinel,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var w io.Writer = io.Discard
+			if tt.writer != nil {
+				w = tt.writer
+			}
+			err := tt.node.Render(w)
+			assert.Error(t, err, tt.expectedErr)
+		})
+	}
+}
+
 // ------------------------------------------------------------------
 //
 //
