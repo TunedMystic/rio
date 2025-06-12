@@ -8,13 +8,6 @@ func Raw(value string) Node {
 	return CreateStringRaw(value)
 }
 
-func Doctype(sibling Node) Node {
-	return Group([]Node{
-		Raw("<!DOCTYPE html>"),
-		sibling,
-	})
-}
-
 // ------------------------------------------------------------------
 //
 // Dom Elements

@@ -26,7 +26,6 @@ func Test_CreateElement(t *testing.T) {
 
 	t.Run("Render error on attribute", func(t *testing.T) {
 		r := Div(errorAttr{}, Span(Text("test")))
-		// w := ErrorWriter{}
 		var b bytes.Buffer
 		err := r.Render(&b)
 		assert.Error(t, err, errors.New("error from errorAttr.RenderAttribute"))
@@ -37,19 +36,6 @@ func Test_CreateElement(t *testing.T) {
 		var b bytes.Buffer
 		err := r.Render(&b)
 		assert.Error(t, err, errors.New("error from errorNode.Render"))
-	})
-}
-
-// ------------------------------------------------------------------
-//
-//
-//
-// ------------------------------------------------------------------
-
-func Test_Doctype(t *testing.T) {
-	t.Run("doctype", func(t *testing.T) {
-		r := Doctype(Html(Lang("en"), Head(Meta(Charset("UTF-8")))))
-		assert.Equal(t, render(r), `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head></html>`)
 	})
 }
 

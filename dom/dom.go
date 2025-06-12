@@ -79,7 +79,7 @@ func (e *htmlElement) Render(w io.Writer) error {
 
 func (e *htmlElement) String() string {
 	var b strings.Builder
-	e.Render(&b)
+	_ = e.Render(&b)
 	return b.String()
 }
 
@@ -144,7 +144,7 @@ func (a *htmlAttr) RenderAttribute(w io.Writer) error {
 
 func (a *htmlAttr) String() string {
 	var b strings.Builder
-	a.Render(&b)
+	_ = a.Render(&b)
 	return b.String()
 }
 
@@ -172,7 +172,7 @@ func (s htmlSafe) Render(w io.Writer) error {
 
 func (s htmlSafe) String() string {
 	var b strings.Builder
-	s.Render(&b)
+	_ = s.Render(&b)
 	return b.String()
 }
 
@@ -214,7 +214,7 @@ func (g Group) Render(w io.Writer) error {
 
 func (g Group) String() string {
 	var b strings.Builder
-	g.Render(&b)
+	_ = g.Render(&b)
 	return b.String()
 }
 
@@ -252,7 +252,40 @@ func (nm *nodeMapper[T]) Render(w io.Writer) error {
 
 func (nm *nodeMapper[T]) String() string {
 	var b strings.Builder
-	nm.Render(&b)
+	_ = nm.Render(&b)
+	return b.String()
+}
+
+// ------------------------------------------------------------------
+//
+// DOM doctype
+//
+// ------------------------------------------------------------------
+
+func Doctype(sibling Node) Node {
+	return &htmlDoctype{
+		sibling: sibling,
+	}
+}
+
+// htmlDoctype represents the <!DOCTYPE html> declaration followed by a sibling Node.
+type htmlDoctype struct {
+	sibling Node
+}
+
+var _ Node = (*htmlDoctype)(nil)
+var _ fmt.Stringer = (*htmlDoctype)(nil)
+
+func (d *htmlDoctype) Render(w io.Writer) error {
+	if _, err := io.WriteString(w, "<!DOCTYPE html>"); err != nil {
+		return err
+	}
+	return d.sibling.Render(w)
+}
+
+func (d *htmlDoctype) String() string {
+	var b strings.Builder
+	_ = d.Render(&b)
 	return b.String()
 }
 

@@ -160,6 +160,32 @@ func Test_HtmlString(t *testing.T) {
 //
 // ------------------------------------------------------------------
 
+func Test_Doctype(t *testing.T) {
+	t.Run("Render/String", func(t *testing.T) {
+		r := Doctype(Html(Lang("en"), Head(Meta(Charset("UTF-8")))))
+		assert.Equal(t, render(r), `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head></html>`)
+		assert.Equal(t, fmt.Sprint(r), `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head></html>`)
+	})
+
+	t.Run("Render error", func(t *testing.T) {
+		r := Doctype(Html(Lang("en"), Head(Meta(Charset("UTF-8")))))
+		errWriterSentinel := errors.New("writer error from htmlDoctype test")
+		writer := &errorWriter{
+			targetErr:      errWriterSentinel,
+			failOnNthWrite: 1,
+		}
+
+		err := r.Render(writer)
+		assert.Error(t, err, errors.New("writer error from htmlDoctype test"))
+	})
+}
+
+// ------------------------------------------------------------------
+//
+//
+//
+// ------------------------------------------------------------------
+
 func Test_ControlStructures(t *testing.T) {
 	t.Run("Group", func(t *testing.T) {
 		r := Group{
