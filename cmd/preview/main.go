@@ -14,12 +14,12 @@ import (
 // themes are demo token sets so the CSS variables resolve. Swap via ?theme=.
 var themes = map[string]ui.Tokens{
 	"apron": {
-		FontFamily:        `"Source Serif 4", serif`,
-		FontSizeSm:        "14px",
-		FontSizeBase:      "16px",
-		FontSizeLg:        "18px",
+		FontFamily:        `"Inter", ui-sans-serif, system-ui, sans-serif`,
+		FontSizeSm:        "16px",
+		FontSizeBase:      "18px",
+		FontSizeLg:        "20px",
 		FontSizeXl:        "24px",
-		FontSize2xl:       "32px",
+		FontSize2xl:       "30px",
 		ColorPrimary:      "#059669",
 		OnPrimary:         "#ffffff",
 		ColorSecondary:    "#475569",
@@ -37,11 +37,11 @@ var themes = map[string]ui.Tokens{
 		FontWeightHeading: "700",
 	},
 	"teddy": {
-		FontFamily:        `"Inter", sans-serif`,
-		FontSizeSm:        "13px",
-		FontSizeBase:      "15px",
-		FontSizeLg:        "17px",
-		FontSizeXl:        "22px",
+		FontFamily:        `"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif`,
+		FontSizeSm:        "16px",
+		FontSizeBase:      "18px",
+		FontSizeLg:        "20px",
+		FontSizeXl:        "24px",
 		FontSize2xl:       "30px",
 		ColorPrimary:      "#4f46e5",
 		OnPrimary:         "#ffffff",
@@ -72,11 +72,14 @@ func main() {
 			dom.Head(
 				dom.Meta(dom.Charset("utf-8")),
 				dom.Meta(dom.Name("viewport"), dom.Content("width=device-width, initial-scale=1")),
+				dom.Link(dom.Rel("preconnect"), dom.Href("https://fonts.googleapis.com")),
+				dom.Link(dom.Rel("preconnect"), dom.Href("https://fonts.gstatic.com"), dom.Crossorigin("anonymous")),
+				dom.Link(dom.Rel("stylesheet"), dom.Href("https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Plus+Jakarta+Sans:wght@400..700&display=swap")),
 				tokens.StyleVars(),
 				dom.Script(dom.Src("https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4")),
 			),
 			dom.Body(
-				dom.Class("bg-[var(--color-background)] text-[var(--color-text)] font-[family-name:var(--font-family)] text-[length:var(--font-size-base)] p-8"),
+				dom.Class("bg-[var(--color-background)] text-[var(--color-text)] font-[family-name:var(--font-family)] text-[length:var(--font-size-base)] leading-relaxed antialiased p-8"),
 				gallery(),
 			),
 		))
