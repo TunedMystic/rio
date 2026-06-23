@@ -9,7 +9,7 @@ type Option struct {
 }
 
 // inputClasses is the shared field styling for text-like inputs.
-const inputClasses = "block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+const inputClasses = "block w-full rounded-[var(--radius-base)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)] shadow-sm transition placeholder:text-[var(--color-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus:border-[var(--color-primary)]"
 
 // Label renders a form label bound to a field id.
 func Label(forID, text string, attrs ...dom.Node) dom.Node {
@@ -93,7 +93,7 @@ func Radio(name, label, value string, checked bool, attrs ...dom.Node) dom.Node 
 
 func checkable(kind, name, label, value string, checked bool, attrs ...dom.Node) dom.Node {
 	input := make([]dom.Node, 0, len(attrs)+5)
-	input = append(input, dom.Class("h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"), dom.Type(kind), dom.Name(name))
+	input = append(input, dom.Class("h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] accent-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2"), dom.Type(kind), dom.Name(name))
 	if value != "" {
 		input = append(input, dom.Value(value))
 	}

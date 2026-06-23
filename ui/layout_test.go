@@ -25,7 +25,8 @@ func Test_Card(t *testing.T) {
 	html := render(Card(dom.Text("raised")))
 	assert.True(t, strings.Contains(html, "bg-[var(--color-surface)]"))
 	assert.True(t, strings.Contains(html, "border-[var(--color-border)]"))
-	assert.True(t, strings.Contains(html, "rounded-lg"))
+	assert.True(t, strings.Contains(html, "rounded-[var(--radius-base)]"))
+	assert.True(t, strings.Contains(html, "shadow-sm"))
 }
 
 func Test_Stack_Gaps(t *testing.T) {

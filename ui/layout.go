@@ -22,7 +22,7 @@ func Section(children ...dom.Node) dom.Node {
 
 // Card is a rounded, bordered raised surface with padding.
 func Card(children ...dom.Node) dom.Node {
-	return dom.Div(withClass("bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-6", children)...)
+	return dom.Div(withClass("bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-base)] p-6 shadow-sm", children)...)
 }
 
 // Stack is a flex column with a configurable gap.

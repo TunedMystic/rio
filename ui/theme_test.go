@@ -25,15 +25,17 @@ func Test_Class_TrimsAndJoins(t *testing.T) {
 
 func Test_StyleVars_EmitsVariables(t *testing.T) {
 	tk := Tokens{
-		FontFamily:     `"Inter", sans-serif`,
-		FontSizeBase:   "16px",
-		FontSize2xl:    "32px",
-		ColorPrimary:   "#059669",
-		OnPrimary:      "#ffffff",
-		ColorText:      "#0f172a",
-		ColorTextMuted: "#64748b",
-		ColorBorder:    "#e2e8f0",
-		ColorSuccess:   "#16a34a",
+		FontFamily:        `"Inter", sans-serif`,
+		FontSizeBase:      "16px",
+		FontSize2xl:       "32px",
+		ColorPrimary:      "#059669",
+		OnPrimary:         "#ffffff",
+		ColorText:         "#0f172a",
+		ColorTextMuted:    "#64748b",
+		ColorBorder:       "#e2e8f0",
+		ColorSuccess:      "#16a34a",
+		RadiusBase:        "0.5rem",
+		FontWeightHeading: "700",
 	}
 	html := render(tk.StyleVars())
 
@@ -48,6 +50,8 @@ func Test_StyleVars_EmitsVariables(t *testing.T) {
 		"--color-text-muted:#64748b;",
 		"--color-border:#e2e8f0;",
 		"--color-success:#16a34a;",
+		"--radius-base:0.5rem;",
+		"--font-weight-heading:700;",
 		"}</style>",
 	} {
 		if !strings.Contains(html, want) {

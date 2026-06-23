@@ -37,7 +37,7 @@ func Heading(level HeadingLevel, text string, attrs ...dom.Node) dom.Node {
 }
 
 func headingClasses(level HeadingLevel) string {
-	base := "font-bold text-[var(--color-text)]"
+	base := "[font-weight:var(--font-weight-heading)] tracking-tight leading-tight text-[var(--color-text)]"
 	switch level {
 	case H2:
 		return Class(base, "text-[length:var(--font-size-xl)]")
@@ -72,7 +72,7 @@ func textClasses(tone TextTone) string {
 // Link renders an inline anchor in the primary color.
 func Link(href, label string, attrs ...dom.Node) dom.Node {
 	children := make([]dom.Node, 0, len(attrs)+2)
-	children = append(children, dom.Class("text-[var(--color-primary)] underline hover:opacity-80"), dom.Href(href))
+	children = append(children, dom.Class("font-medium text-[var(--color-primary)] underline decoration-2 underline-offset-2 transition-opacity hover:opacity-80"), dom.Href(href))
 	children = append(children, attrs...)
 	children = append(children, dom.Text(label))
 	return dom.A(children...)

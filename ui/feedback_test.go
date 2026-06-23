@@ -13,10 +13,10 @@ func Test_Badge_Variants(t *testing.T) {
 		variant BadgeVariant
 		want    string
 	}{
-		{BadgeNeutral, "bg-[var(--color-border)] text-[var(--color-text)]"},
-		{BadgeSuccess, "bg-[var(--color-success)] text-white"},
-		{BadgeWarning, "bg-[var(--color-warning)] text-white"},
-		{BadgeDanger, "bg-[var(--color-danger)] text-white"},
+		{BadgeNeutral, "bg-[var(--color-text)]/8 text-[var(--color-text)]"},
+		{BadgeSuccess, "bg-[var(--color-success)]/12 text-[var(--color-success)]"},
+		{BadgeWarning, "bg-[var(--color-warning)]/12 text-[var(--color-warning)]"},
+		{BadgeDanger, "bg-[var(--color-danger)]/12 text-[var(--color-danger)]"},
 	}
 	for _, c := range cases {
 		html := render(Badge(c.variant, "New"))

@@ -35,6 +35,10 @@ type Tokens struct {
 	ColorWarning string
 	ColorDanger  string
 	ColorInfo    string
+
+	// Structure — a small set of non-color knobs products can tune.
+	RadiusBase        string // base corner radius, e.g. "0.5rem"
+	FontWeightHeading string // heading font weight, e.g. "700"
 }
 
 // StyleVars renders the product's tokens as a :root {...} <style> block.
@@ -62,6 +66,8 @@ func (tk Tokens) StyleVars() dom.Node {
 	writeVar(&b, "--color-warning", tk.ColorWarning)
 	writeVar(&b, "--color-danger", tk.ColorDanger)
 	writeVar(&b, "--color-info", tk.ColorInfo)
+	writeVar(&b, "--radius-base", tk.RadiusBase)
+	writeVar(&b, "--font-weight-heading", tk.FontWeightHeading)
 	b.WriteString("}")
 	return dom.StyleEl(dom.Raw(b.String()))
 }
