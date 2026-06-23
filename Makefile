@@ -25,6 +25,12 @@ bench:
 	@go test -bench=. -benchmem -run=^$$ -count=1 ./...
 
 
+## @(app) - 🎨 Serve the rio/ui component gallery on :8080
+preview:
+	@echo "✨📦✨ Serving component gallery on :8080\n"
+	@go run ./cmd/preview
+
+
 ## @(app) - ✨ Remove temp files and dirs
 clean:
 	@echo "✨✨ Cleaning temp files\n"
